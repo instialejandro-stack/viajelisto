@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Clock, Coffee, LocateFixed, MapPin, Minus, Navigation, Plus, Route, ShoppingBasket } from "lucide-react";
+import { CalendarDays, Clock, Coffee, LocateFixed, MapPin, Minus, Navigation, Plus, Route, Search, ShoppingBasket } from "lucide-react";
 import { Link } from "react-router-dom";
 import Badge from "../components/Badge.jsx";
 import DayTabs from "../components/DayTabs.jsx";
@@ -8,9 +8,23 @@ import PageHeader from "../components/PageHeader.jsx";
 import SectionCard from "../components/SectionCard.jsx";
 import StatCard from "../components/StatCard.jsx";
 import { useAppState } from "../state/AppStateContext.jsx";
-import { buildOsmTiles, getDayMapPoints, getMapCenter, getNearbyUsefulPoints, hasCoordinates, lonLatToWorldPixel, projectPointToMap, worldPixelToLonLat } from "../utils/mapUtils.js";
+import {
+  buildOsmTiles,
+  clusterMapPoints,
+  getDayMapPoints,
+  getMapCenter,
+  getNearbyUsefulPoints,
+  hasCoordinates,
+  lonLatToWorldPixel,
+  searchKnownLocations,
+  worldPixelToLonLat,
+} from "../utils/mapUtils.js";
 
-function MapCanvas({ points, title }) {
+function pointLabel(point) {
+  return `${point.time ? `${point.time} - ` : ""}${point.name}`;
+}
+
+function MapCanvas({ points, title, selectedPointId, onSelectPoint, focusPoint }) {
   const mappable = points.filter(hasCoordinates);
   const initialCenter = useMemo(() => getMapCenter(mappable), [mappable]);
   const containerRef = useRef(null);
@@ -19,10 +33,18 @@ function MapCanvas({ points, title }) {
   const [zoom, setZoom] = useState(14);
   const [size, setSize] = useState({ width: 960, height: 520 });
   const map = buildOsmTiles(center, zoom, size.width, size.height);
+  const clusters = useMemo(() => clusterMapPoints(mappable, map), [mappable, map]);
 
   useEffect(() => {
     setCenter(initialCenter);
   }, [initialCenter.lat, initialCenter.lng]);
+
+  useEffect(() => {
+    if (focusPoint?.lat !== undefined && focusPoint?.lng !== undefined) {
+      setCenter({ lat: Number(focusPoint.lat), lng: Number(focusPoint.lng) });
+      setZoom((current) => Math.max(current, 15));
+    }
+  }, [focusPoint?.lat, focusPoint?.lng]);
 
   useEffect(() => {
     if (!containerRef.current) return undefined;
@@ -56,8 +78,37 @@ function MapCanvas({ points, title }) {
     dragRef.current = null;
   }
 
-  function zoomBy(delta) {
-    setZoom((current) => Math.max(11, Math.min(17, current + delta)));
+  function zoomBy(delta, anchorEvent = null) {
+    const nextZoom = Math.max(11, Math.min(18, zoom + delta));
+    if (anchorEvent && nextZoom !== zoom && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const offsetX = anchorEvent.clientX - rect.left - size.width / 2;
+      const offsetY = anchorEvent.clientY - rect.top - size.height / 2;
+      const before = moveByPixels(-offsetX, -offsetY, center, zoom);
+      const beforePx = lonLatToWorldPixel(before.lat, before.lng, nextZoom);
+      const nextCenterPx = { x: beforePx.x + offsetX, y: beforePx.y + offsetY };
+      setCenter(worldPixelToLonLat(nextCenterPx.x, nextCenterPx.y, nextZoom));
+    }
+    setZoom(nextZoom);
+  }
+
+  function handleWheel(event) {
+    event.preventDefault();
+    zoomBy(event.deltaY < 0 ? 1 : -1, event);
+  }
+
+  function handleDoubleClick(event) {
+    event.preventDefault();
+    zoomBy(1, event);
+  }
+
+  function selectCluster(cluster) {
+    const first = cluster.points[0];
+    onSelectPoint?.(first.id);
+    if (cluster.points.length > 1) {
+      setCenter(getMapCenter(cluster.points));
+      setZoom((current) => Math.min(18, current + 1));
+    }
   }
 
   return (
@@ -68,6 +119,8 @@ function MapCanvas({ points, title }) {
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      onWheel={handleWheel}
+      onDoubleClick={handleDoubleClick}
     >
       <div className="absolute inset-0">
         {map.tiles.map((tile) => (
@@ -88,20 +141,31 @@ function MapCanvas({ points, title }) {
         </button>
       </div>
 
-      {mappable.length ? (
-        mappable.map((point, index) => {
-          const position = projectPointToMap(point, map);
+      {clusters.length ? (
+        clusters.map((cluster, index) => {
+          const first = cluster.points[0];
+          const selected = cluster.points.some((point) => point.id === selectedPointId);
+          const isNearby = first.source === "nearby";
+          const isSearch = first.source === "search";
           return (
-            <div key={point.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: position.left, top: position.top }}>
-              <div className="group relative">
-                <span className={`flex h-11 w-11 items-center justify-center rounded-full text-white shadow-soft ring-4 ring-white ${point.source === "nearby" ? "bg-emerald-600" : "bg-primary-600"}`}>
-                  {point.source === "nearby" ? <Coffee size={18} /> : index + 1}
+            <button
+              key={cluster.id}
+              type="button"
+              className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+              style={{ left: cluster.left, top: cluster.top }}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => { event.stopPropagation(); selectCluster(cluster); }}
+              title={cluster.points.map(pointLabel).join("\n")}
+            >
+              <span className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-black text-white shadow-soft ring-4 transition ${selected ? "scale-110 ring-primary-200" : "ring-white"} ${isSearch ? "bg-violet-600" : isNearby ? "bg-emerald-600" : "bg-primary-600"}`}>
+                {cluster.points.length > 1 ? cluster.points.length : isNearby ? <Coffee size={18} /> : isSearch ? <Search size={18} /> : index + 1}
+              </span>
+              {(selected || cluster.points.length === 1) && (
+                <span className={`absolute left-1/2 z-10 mt-2 hidden w-max max-w-[220px] -translate-x-1/2 rounded-2xl px-3 py-2 text-xs font-bold text-white shadow-lg sm:block ${selected ? "bg-primary-700" : "bg-ink"}`}>
+                  {cluster.points.length > 1 ? `${cluster.points.length} puntos cercanos` : pointLabel(first)}
                 </span>
-                <span className="absolute left-1/2 top-12 z-10 hidden w-max max-w-[220px] -translate-x-1/2 rounded-2xl bg-ink px-3 py-2 text-xs font-bold text-white shadow-lg sm:block">
-                  {point.time ? `${point.time} - ` : ""}{point.name}
-                </span>
-              </div>
-            </div>
+              )}
+            </button>
           );
         })
       ) : (
@@ -122,7 +186,7 @@ function MapCanvas({ points, title }) {
           <div>
             <p className="font-black text-ink">{title}</p>
             <p className="mt-1 text-xs font-semibold text-slate-500">
-              Arrastra para moverte. Zoom {zoom}. OpenStreetMap sin API key.
+              Arrastra, usa la rueda o doble clic para navegar. Zoom {zoom}.
             </p>
           </div>
         </div>
@@ -135,16 +199,32 @@ export default function TripMap() {
   const { activeTrip, activeTripId, itineraryDays, places, restaurants, lodgings } = useAppState();
   const [active, setActive] = useState(0);
   const [showNearby, setShowNearby] = useState(true);
+  const [query, setQuery] = useState("");
+  const [selectedPointId, setSelectedPointId] = useState("");
+  const [searchPoint, setSearchPoint] = useState(null);
+  const searchResults = useMemo(() => searchKnownLocations(query), [query]);
   const day = itineraryDays[active] || itineraryDays[0];
   const { points, missing } = useMemo(
     () => getDayMapPoints(day, { places, restaurants, lodgings }),
     [day, places, restaurants, lodgings]
   );
   const nearbyPoints = useMemo(() => getNearbyUsefulPoints(lodgings), [lodgings]);
-  const visiblePoints = showNearby ? [...points, ...nearbyPoints] : points;
+  const visiblePoints = [searchPoint, ...points, ...(showNearby ? nearbyPoints : [])].filter(Boolean);
+  const selectedPoint = visiblePoints.find((point) => point.id === selectedPointId) || searchPoint;
+
+  useEffect(() => {
+    setSelectedPointId("");
+    setSearchPoint(null);
+  }, [active]);
 
   if (!activeTrip) {
     return <EmptyState title="No hay viaje seleccionado" description="Abre un viaje desde el Dashboard para ver su mapa por días." />;
+  }
+
+  function chooseSearchResult(result) {
+    setSearchPoint(result);
+    setSelectedPointId(result.id);
+    setQuery(result.name);
   }
 
   return (
@@ -165,6 +245,34 @@ export default function TripMap() {
 
       <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
         <SectionCard title={`${day?.day || "Día"} en el mapa`}>
+          <div className="mb-4 grid gap-3 rounded-3xl border border-line bg-white p-4 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <p className="font-black text-ink">Buscar ubicación</p>
+              <p className="mt-1 text-sm text-slate-500">Busca por nombre en el catálogo local de la demo. No se conecta a APIs externas.</p>
+            </div>
+            <div className="relative min-w-0 lg:w-[340px]">
+              <div className="flex rounded-2xl border border-line bg-slate-50 px-3 py-2 focus-within:border-primary-200 focus-within:ring-2 focus-within:ring-primary-100">
+                <Search className="mr-2 mt-0.5 shrink-0 text-slate-400" size={18} />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Fontana di Trevi, Torre Eiffel..."
+                  className="min-w-0 flex-1 bg-transparent text-sm font-bold text-ink outline-none placeholder:text-slate-400"
+                />
+              </div>
+              {searchResults.length ? (
+                <div className="absolute right-0 top-12 z-30 w-full rounded-2xl border border-line bg-white p-2 shadow-soft">
+                  {searchResults.map((result) => (
+                    <button key={result.id} type="button" className="w-full rounded-xl px-3 py-2 text-left text-sm font-bold text-ink hover:bg-primary-50" onClick={() => chooseSearchResult(result)}>
+                      {result.name}
+                      <span className="ml-2 text-xs font-semibold text-slate-400">{result.zone}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
           <div className="mb-4 flex flex-col justify-between gap-3 rounded-3xl border border-line bg-white p-4 sm:flex-row sm:items-center">
             <div>
               <p className="font-black text-ink">Sitios cercanos al alojamiento</p>
@@ -175,37 +283,51 @@ export default function TripMap() {
               {showNearby ? "Ocultar cercanos" : "Mostrar cercanos"}
             </button>
           </div>
-          <MapCanvas points={visiblePoints} title={`${activeTrip.name} · ${day?.day || "Día"}`} />
+          <MapCanvas
+            points={visiblePoints}
+            title={`${activeTrip.name} · ${day?.day || "Día"}`}
+            selectedPointId={selectedPointId}
+            onSelectPoint={setSelectedPointId}
+            focusPoint={selectedPoint}
+          />
         </SectionCard>
 
         <aside className="grid gap-6 self-start">
           <SectionCard title="Puntos del día">
             {points.length ? (
               <div className="grid gap-3">
-                {points.map((point, index) => (
-                  <div key={point.id} className="rounded-2xl border border-line bg-white p-4">
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-sm font-black text-primary-700">
-                        {index + 1}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="font-black text-ink">{point.name}</p>
-                          <Badge>{point.type}</Badge>
-                        </div>
-                        <p className="mt-1 text-sm font-semibold text-slate-500">
-                          {point.time ? `${point.time} · ` : ""}{point.address || point.zone}
-                        </p>
-                        {point.duration || point.cost ? (
-                          <p className="mt-2 flex flex-wrap gap-2 text-xs font-bold text-slate-400">
-                            {point.duration ? <span>{point.duration}</span> : null}
-                            {point.cost ? <span>{point.cost}</span> : null}
+                {points.map((point, index) => {
+                  const selected = selectedPointId === point.id;
+                  return (
+                    <button
+                      key={point.id}
+                      type="button"
+                      className={`rounded-2xl border p-4 text-left transition ${selected ? "border-primary-200 bg-primary-50 shadow-sm" : "border-line bg-white hover:border-primary-100 hover:bg-slate-50"}`}
+                      onClick={() => setSelectedPointId(point.id)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-sm font-black text-primary-700">
+                          {index + 1}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-black text-ink">{point.name}</p>
+                            <Badge>{point.type}</Badge>
+                          </div>
+                          <p className="mt-1 text-sm font-semibold text-slate-500">
+                            {point.time ? `${point.time} · ` : ""}{point.address || point.zone}
                           </p>
-                        ) : null}
+                          {point.duration || point.cost ? (
+                            <p className="mt-2 flex flex-wrap gap-2 text-xs font-bold text-slate-400">
+                              {point.duration ? <span>{point.duration}</span> : null}
+                              {point.cost ? <span>{point.cost}</span> : null}
+                            </p>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             ) : (
               <EmptyState
@@ -222,7 +344,7 @@ export default function TripMap() {
             {nearbyPoints.length ? (
               <div className="grid gap-3">
                 {nearbyPoints.map((point) => (
-                  <div key={point.id} className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                  <button key={point.id} type="button" className={`rounded-2xl border p-4 text-left transition ${selectedPointId === point.id ? "border-emerald-200 bg-emerald-100" : "border-emerald-100 bg-emerald-50 hover:bg-emerald-100"}`} onClick={() => setSelectedPointId(point.id)}>
                     <div className="flex items-start gap-3">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-700">
                         <Coffee size={17} />
@@ -235,7 +357,7 @@ export default function TripMap() {
                         <p className="mt-1 text-sm font-semibold text-emerald-800">{point.distance} · {point.relatedLodging}</p>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             ) : (

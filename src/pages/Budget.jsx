@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { ArrowRightLeft, Lightbulb, Plus, ReceiptText, Trash2, UserPlus, UserRound, WalletCards } from "lucide-react";
+import { ArrowRightLeft, CheckCircle2, Lightbulb, Plus, ReceiptText, Trash2, UserPlus, UserRound, WalletCards } from "lucide-react";
 import BudgetCategoryCard from "../components/BudgetCategoryCard.jsx";
 import ExpenseItem from "../components/ExpenseItem.jsx";
 import { FormError, FormInput, FormSelect } from "../components/FormControls.jsx";
@@ -84,10 +84,32 @@ function calculateSharedExpenses(expenses, participants) {
   return { balances, paidExpenses, settlements };
 }
 
+function debtKey(debt) {
+  return `${debt.from}->${debt.to}:${Math.round(Number(debt.amount || 0) * 100)}`;
+}
+
 export default function Budget() {
-  const { expenses, budgetRows, participants = [], settledDebts = [], activeTrip, addExpense, updateExpense, deleteExpense, addParticipant, updateParticipant, deleteParticipant, toggleDebtPaid } = useAppState();
+  const {
+    expenses,
+    budgetRows,
+    participants = [],
+    settledDebts = [],
+    settlementPayments = [],
+    activeTrip,
+    addExpense,
+    updateExpense,
+    deleteExpense,
+    addParticipant,
+    updateParticipant,
+    deleteParticipant,
+    toggleDebtPaid,
+    addSettlementPayment,
+    deleteSettlementPayment,
+  } = useAppState();
   const [activeTab, setActiveTab] = useState("resumen");
   const [modalOpen, setModalOpen] = useState(false);
+  const [paymentModal, setPaymentModal] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
   const [editingExpense, setEditingExpense] = useState(null);
   const [deletingExpense, setDeletingExpense] = useState(null);
   const [participantName, setParticipantName] = useState("");
@@ -116,9 +138,20 @@ export default function Budget() {
   const participantsById = useMemo(() => Object.fromEntries(participants.map((participant) => [participant.id, participant])), [participants]);
   const normalizedSplitWith = form.splitWith?.length ? form.splitWith : participants.map((participant) => participant.id);
   const sharedSummary = useMemo(() => calculateSharedExpenses(expenses, participants), [expenses, participants]);
-  const debtKey = (debt) => `${debt.from}->${debt.to}:${Math.round(Number(debt.amount || 0) * 100)}`;
-  const pendingSettlements = sharedSummary.settlements.filter((settlement) => !settledDebts.includes(debtKey(settlement)));
-  const paidSettlements = sharedSummary.settlements.filter((settlement) => settledDebts.includes(debtKey(settlement)));
+  const paymentsByKey = useMemo(() => {
+    return settlementPayments.reduce((map, payment) => {
+      map[payment.key] = (map[payment.key] || 0) + Number(payment.amount || 0);
+      return map;
+    }, {});
+  }, [settlementPayments]);
+  const settlementRows = sharedSummary.settlements.map((settlement) => {
+    const key = debtKey(settlement);
+    const paid = settledDebts.includes(key) ? Number(settlement.amount || 0) : Math.min(Number(settlement.amount || 0), paymentsByKey[key] || 0);
+    const remaining = Math.max(Number(settlement.amount || 0) - paid, 0);
+    return { ...settlement, key, paid, remaining, complete: remaining <= 0.01 };
+  });
+  const pendingSettlements = settlementRows.filter((settlement) => !settlement.complete);
+  const paidSettlements = settlementRows.filter((settlement) => settlement.complete);
   const sharedTotal = sharedSummary.paidExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
   const categoryRows = useMemo(
     () =>
@@ -196,6 +229,19 @@ export default function Budget() {
     setParticipantError("");
   }
 
+  function openPaymentModal(settlement) {
+    setPaymentModal(settlement);
+    setPaymentAmount(String(formatMoney(settlement.remaining || settlement.amount)));
+  }
+
+  function savePartialPayment(event) {
+    event.preventDefault();
+    if (!paymentModal || !paymentAmount) return;
+    addSettlementPayment(paymentModal, paymentAmount);
+    setPaymentModal(null);
+    setPaymentAmount("");
+  }
+
   return (
     <div className="grid gap-6">
       <PageHeader
@@ -211,7 +257,7 @@ export default function Budget() {
         {[
           ["resumen", "Resumen"],
           ["gastos", "Gastos"],
-          ["compartidos", "Dividir gastos"],
+          ["compartidos", "Gastos compartidos"],
         ].map(([value, label]) => (
           <button
             key={value}
@@ -309,7 +355,7 @@ export default function Budget() {
               <StatCard icon={UserRound} label="Participantes" value={participants.length} hint="Personas del viaje" />
               <StatCard icon={ReceiptText} label="Gastos compartidos" value={sharedSummary.paidExpenses.length} hint="Pagados y repartidos" accent="emerald" />
               <StatCard icon={WalletCards} label="Total compartido" value={`${formatMoney(sharedTotal)} €`} hint="Incluye gastos pagados" accent="amber" />
-              <StatCard icon={ArrowRightLeft} label="Movimientos pendientes" value={pendingSettlements.length} hint={`${paidSettlements.length} marcados como pagados`} accent="violet" />
+              <StatCard icon={ArrowRightLeft} label="Movimientos pendientes" value={pendingSettlements.length} hint={`${paidSettlements.length} saldados`} accent="violet" />
             </div>
 
             <SectionCard title="Balance por persona">
@@ -333,26 +379,38 @@ export default function Budget() {
               </div>
             </SectionCard>
 
-            <SectionCard title="Quién debe a quién">
-              {sharedSummary.settlements.length ? (
+            <SectionCard title="Liquidación final">
+              {settlementRows.length ? (
                 <div className="grid gap-3">
-                  {sharedSummary.settlements.map((settlement) => (
-                    <div key={`${settlement.from}-${settlement.to}-${settlement.amount}`} className={`flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between ${settledDebts.includes(debtKey(settlement)) ? "bg-emerald-50" : "bg-primary-50"}`}>
-                      <div>
-                        <p className="font-black text-ink">{participantsById[settlement.from]?.name} debe pagar a {participantsById[settlement.to]?.name}</p>
-                        <p className="mt-1 text-sm font-bold text-slate-500">{settledDebts.includes(debtKey(settlement)) ? "Marcada como pagada" : "Pendiente de compensar"}</p>
+                  {settlementRows.map((settlement) => (
+                    <div key={settlement.key} className={`rounded-2xl p-4 ${settlement.complete ? "bg-emerald-50" : settlement.paid > 0 ? "bg-amber-50" : "bg-primary-50"}`}>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="font-black text-ink">{participantsById[settlement.from]?.name} debe pagar a {participantsById[settlement.to]?.name}</p>
+                          <p className="mt-1 text-sm font-bold text-slate-500">
+                            {settlement.complete ? "Saldado" : settlement.paid > 0 ? `Pago parcial: ${formatMoney(settlement.paid)} € abonados` : "Pendiente de compensar"}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <strong className="text-primary-800">{formatMoney(settlement.remaining)} € pendientes</strong>
+                          {!settlement.complete ? (
+                            <button type="button" className="secondary-button px-3 py-2 text-xs" onClick={() => openPaymentModal(settlement)}>
+                              Pago parcial
+                            </button>
+                          ) : null}
+                          <button type="button" className={settlement.complete ? "secondary-button px-3 py-2 text-xs" : "primary-button px-3 py-2 text-xs"} onClick={() => toggleDebtPaid(settlement)}>
+                            {settlement.complete ? "Reabrir" : "Marcar saldada"}
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <strong className="text-primary-800">{formatMoney(settlement.amount)} €</strong>
-                        <button type="button" className={settledDebts.includes(debtKey(settlement)) ? "secondary-button" : "primary-button"} onClick={() => toggleDebtPaid(settlement)}>
-                          {settledDebts.includes(debtKey(settlement)) ? "Desmarcar" : "Marcar pagada"}
-                        </button>
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80">
+                        <div className="h-full rounded-full bg-primary-500" style={{ width: `${Math.min(100, Math.round((settlement.paid / settlement.amount) * 100))}%` }} />
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <EmptyState title="No hay deudas pendientes" description="Cuando registres gastos pagados y repartidos, ViajeListo calculará los saldos." />
+                <EmptyState title="Todos están al día" description="Cuando registres gastos pagados y repartidos, ViajeListo calculará quién debe compensar a quién." icon={CheckCircle2} />
               )}
             </SectionCard>
           </div>
@@ -404,11 +462,31 @@ export default function Budget() {
               </div>
             </SectionCard>
 
+            <SectionCard title="Pagos registrados">
+              {settlementPayments.length ? (
+                <div className="grid gap-2">
+                  {settlementPayments.map((payment) => (
+                    <div key={payment.id} className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-ink">{participantsById[payment.from]?.name} → {participantsById[payment.to]?.name}</p>
+                        <p className="text-xs font-bold text-slate-500">{formatMoney(payment.amount)} €</p>
+                      </div>
+                      <button type="button" className="rounded-xl p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600" onClick={() => deleteSettlementPayment(payment.id)} aria-label="Eliminar pago">
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-500">Todavía no hay pagos parciales registrados.</p>
+              )}
+            </SectionCard>
+
             <SectionCard title="Cómo se calcula">
               <div className="grid gap-3 text-sm leading-6 text-slate-600">
                 <p className="rounded-2xl bg-slate-50 p-4">Solo se tienen en cuenta los gastos marcados como pagados.</p>
                 <p className="rounded-2xl bg-slate-50 p-4">Cada gasto se divide a partes iguales entre las personas seleccionadas.</p>
-                <p className="rounded-2xl bg-slate-50 p-4">El balance indica quién adelantó dinero y quién debe compensar.</p>
+                <p className="rounded-2xl bg-slate-50 p-4">Puedes registrar pagos parciales o marcar una deuda como saldada.</p>
               </div>
             </SectionCard>
           </aside>
@@ -471,6 +549,21 @@ export default function Budget() {
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
             <button type="button" className="secondary-button" onClick={() => { setModalOpen(false); setEditingExpense(null); }}>Cancelar</button>
             <button type="submit" className="primary-button">{editingExpense !== null ? "Guardar cambios" : "Guardar gasto"}</button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={Boolean(paymentModal)} onClose={() => setPaymentModal(null)} title="Registrar pago" description="Anota un pago parcial o total entre participantes.">
+        <form onSubmit={savePartialPayment} className="grid gap-4">
+          <FormInput label="Importe pagado" type="number" min="0" step="0.01" value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} />
+          {paymentModal ? (
+            <p className="rounded-2xl bg-primary-50 p-4 text-sm font-bold text-primary-800">
+              {participantsById[paymentModal.from]?.name} paga a {participantsById[paymentModal.to]?.name}. Pendiente actual: {formatMoney(paymentModal.remaining || paymentModal.amount)} €.
+            </p>
+          ) : null}
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <button type="button" className="secondary-button" onClick={() => setPaymentModal(null)}>Cancelar</button>
+            <button type="submit" className="primary-button">Guardar pago</button>
           </div>
         </form>
       </Modal>

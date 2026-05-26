@@ -42,6 +42,12 @@ function parseBudget(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function parseMoneyAmount(value) {
+  const normalized = String(value || "").replace(/[^\d.,-]/g, "").replace(",", ".");
+  const number = Number.parseFloat(normalized);
+  return Number.isFinite(number) ? number : 0;
+}
+
 function parsePeopleCount(value) {
   return Number.parseInt(String(value || "2").replace(/[^\d]/g, ""), 10) || 2;
 }
@@ -123,6 +129,7 @@ function normalizeTripData(data, trip = {}) {
     reservationChecks: data.reservationChecks || {},
     dayModeChecks: data.dayModeChecks || {},
     settledDebts: data.settledDebts || [],
+    settlementPayments: data.settlementPayments || [],
     polls: data.polls || [],
     currency: data.currency || { base: "EUR", target: "USD", rate: 1.08, amount: 100 },
     preparationTasks: data.preparationTasks || [],
@@ -173,6 +180,7 @@ function makeTripData({ example = false, trip = {}, templateId = "" } = {}) {
       reservationChecks: {},
       dayModeChecks: {},
       settledDebts: [],
+      settlementPayments: [],
       polls: [{ id: "poll-1", question: "¿Qué plan priorizamos para el Día 4?", options: [{ id: "o1", text: "Ostia Antica", votes: ["p1"] }, { id: "o2", text: "Ruta gastronómica", votes: [] }] }],
       currency: { base: "EUR", target: "USD", rate: 1.08, amount: 100 },
       preparationTasks: [],
@@ -201,6 +209,7 @@ function makeTripData({ example = false, trip = {}, templateId = "" } = {}) {
     reservationChecks: {},
     dayModeChecks: {},
     settledDebts: [],
+    settlementPayments: [],
     polls: [],
     currency: { base: "EUR", target: "USD", rate: 1, amount: 100 },
     preparationTasks: [],
@@ -605,7 +614,6 @@ export function AppStateProvider({ children }) {
         [group]: data.checklist[group].map((task, taskIndex) => (taskIndex === index ? { ...task, done: !task.done } : task)),
       },
     }));
-    addHistory("Actividad eliminada", dayName);
   }
 
   function addTask(group, form) {
@@ -874,6 +882,37 @@ export function AppStateProvider({ children }) {
         settledDebts: settledDebts.includes(key) ? settledDebts.filter((item) => item !== key) : [...settledDebts, key],
       };
     });
+  }
+
+  function addSettlementPayment(debt, amount) {
+    const paidAmount = Math.max(0, parseMoneyAmount(amount));
+    if (!paidAmount) return;
+    const key = `${debt.from}->${debt.to}:${Math.round(Number(debt.amount || 0) * 100)}`;
+    updateActiveTripData((data) => ({
+      ...data,
+      settlementPayments: [
+        {
+          id: makeId("settlement"),
+          key,
+          from: debt.from,
+          to: debt.to,
+          amount: Math.min(paidAmount, Number(debt.amount || paidAmount)),
+          date: new Date().toISOString(),
+        },
+        ...(data.settlementPayments || []),
+      ],
+      settledDebts:
+        paidAmount >= Number(debt.amount || 0)
+          ? Array.from(new Set([...(data.settledDebts || []), key]))
+          : data.settledDebts || [],
+    }));
+  }
+
+  function deleteSettlementPayment(paymentId) {
+    updateActiveTripData((data) => ({
+      ...data,
+      settlementPayments: (data.settlementPayments || []).filter((payment) => payment.id !== paymentId),
+    }));
   }
 
   function addPoll(form) {
@@ -1161,6 +1200,7 @@ export function AppStateProvider({ children }) {
         reservationChecks: activeTripData.reservationChecks,
         dayModeChecks: activeTripData.dayModeChecks,
         settledDebts: activeTripData.settledDebts,
+        settlementPayments: activeTripData.settlementPayments,
         polls: activeTripData.polls,
         currency: activeTripData.currency,
         preparationTasks: activeTripData.preparationTasks,
@@ -1224,6 +1264,8 @@ export function AppStateProvider({ children }) {
         deleteReview,
         applyTemplate,
         toggleDebtPaid,
+        addSettlementPayment,
+        deleteSettlementPayment,
         addPoll,
         votePoll,
         deletePoll,

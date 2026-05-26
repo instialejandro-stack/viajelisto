@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CalendarDays, Clock, Footprints, Lightbulb, MapPinned, Plus, ReceiptText, Route, Shuffle } from "lucide-react";
 import { Link } from "react-router-dom";
 import DayTabs from "../components/DayTabs.jsx";
@@ -10,7 +10,21 @@ import SectionCard from "../components/SectionCard.jsx";
 import StatCard from "../components/StatCard.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import { useAppState } from "../state/AppStateContext.jsx";
-import { getAccommodationIssues, getItineraryIssues } from "../utils/tripIntelligence.js";
+import { analyzeItineraryDay, getAccommodationIssues, getItineraryIssues } from "../utils/tripIntelligence.js";
+
+const emptyActivity = (day = "Día 1") => ({
+  day,
+  time: "",
+  name: "",
+  type: "Visita",
+  address: "",
+  duration: "",
+  travelTime: "",
+  cost: "",
+  lat: "",
+  lng: "",
+  notes: "",
+});
 
 export default function Itinerary() {
   const { itineraryDays, lodgings, activeTrip, activeTripId, addActivity, updateActivity, deleteActivity, reorderDayByProximity } = useAppState();
@@ -19,20 +33,9 @@ export default function Itinerary() {
   const [editingActivity, setEditingActivity] = useState(null);
   const [deletingActivity, setDeletingActivity] = useState(null);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({
-    day: itineraryDays[0]?.day || "Día 1",
-    time: "",
-    name: "",
-    type: "Visita",
-    address: "",
-    duration: "",
-    travelTime: "",
-    cost: "",
-    lat: "",
-    lng: "",
-    notes: "",
-  });
-  const day = itineraryDays[active] || itineraryDays[0];
+  const [form, setForm] = useState(emptyActivity(itineraryDays[0]?.day || "Día 1"));
+  const day = itineraryDays[active] || itineraryDays[0] || { day: "Día 1", items: [] };
+  const dayAnalysis = useMemo(() => analyzeItineraryDay(day), [day]);
   const itineraryIssues = getItineraryIssues(itineraryDays);
   const dayIssues = itineraryIssues.filter((issue) => issue.title.includes(day?.day));
   const lodgingIssues = getAccommodationIssues(activeTrip, lodgings);
@@ -51,7 +54,8 @@ export default function Itinerary() {
 
   function openModal() {
     setEditingActivity(null);
-    setForm((current) => ({ ...current, day: day?.day || "Día 1" }));
+    setForm(emptyActivity(day?.day || "Día 1"));
+    setError("");
     setModalOpen(true);
   }
 
@@ -87,7 +91,7 @@ export default function Itinerary() {
     setEditingActivity(null);
     const nextIndex = itineraryDays.findIndex((item) => item.day === form.day);
     if (nextIndex >= 0) setActive(nextIndex);
-    setForm({ day: form.day, time: "", name: "", type: "Visita", address: "", duration: "", travelTime: "", cost: "", lat: "", lng: "", notes: "" });
+    setForm(emptyActivity(form.day));
   }
 
   return (
@@ -96,22 +100,24 @@ export default function Itinerary() {
         <div className="grid lg:grid-cols-[1fr_360px]">
           <div className="p-6 sm:p-8">
             <p className="text-sm font-black uppercase text-primary-700">Agenda del viaje</p>
-            <div className="mt-3 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+            <div className="mt-3 flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
               <div>
                 <h1 className="text-4xl font-black text-ink sm:text-5xl">Itinerario de {activeTrip?.name || "tu viaje"}</h1>
                 <p className="mt-3 flex flex-wrap items-center gap-2 text-slate-500">
                   <CalendarDays size={17} /> {activeTrip?.dates || "Fechas por definir"} · {itineraryDays.length} días organizados
                 </p>
               </div>
-              <Link to={`/trips/${activeTripId}/map`} className="secondary-button shrink-0 px-5 py-3">
-                <MapPinned size={18} /> Ver mapa del día
-              </Link>
-              <button className="secondary-button shrink-0 px-5 py-3" onClick={() => reorderDayByProximity(day.day)}>
-                <Shuffle size={18} /> Ordenar por cercanía
-              </button>
-              <button className="primary-button shrink-0 px-5 py-3" onClick={openModal}>
-                <Plus size={18} /> Añadir actividad
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <Link to={`/trips/${activeTripId}/map`} className="secondary-button shrink-0 px-5 py-3">
+                  <MapPinned size={18} /> Ver mapa del día
+                </Link>
+                <button className="secondary-button shrink-0 px-5 py-3" onClick={() => reorderDayByProximity(day.day)}>
+                  <Shuffle size={18} /> Ordenar por cercanía
+                </button>
+                <button className="primary-button shrink-0 px-5 py-3" onClick={openModal}>
+                  <Plus size={18} /> Añadir actividad
+                </button>
+              </div>
             </div>
           </div>
           <div className="border-t border-line bg-[linear-gradient(135deg,#ecfeff_0%,#ffffff_72%)] p-6 lg:border-l lg:border-t-0">
@@ -127,10 +133,11 @@ export default function Itinerary() {
 
       <DayTabs days={itineraryDays} active={active} onChange={setActive} />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={Route} label="Actividades" value={day.items.length} hint="Planificadas para este día" />
+        <StatCard icon={Clock} label="Duración total" value={dayAnalysis.totalDurationLabel} hint={`Agenda: ${dayAnalysis.daySpanLabel}`} accent="emerald" />
+        <StatCard icon={Footprints} label="Traslados" value={dayAnalysis.travelLabel} hint="Tiempo entre actividades" accent="amber" />
         <StatCard icon={ReceiptText} label="Coste estimado" value={day.estimatedCost} hint="Sin compras opcionales" accent="violet" />
-        <StatCard icon={Footprints} label="Movimiento" value={day.movement} hint="Caminando o transporte" accent="emerald" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
@@ -144,7 +151,7 @@ export default function Itinerary() {
             <div>
               {day.items.map((item, index) => (
                 <ItineraryActivityCard
-                  key={`${item.time}-${item.name}`}
+                  key={`${item.time}-${item.name}-${index}`}
                   item={item}
                   onEdit={() => openEdit(item, index)}
                   onDelete={() => setDeletingActivity({ day: day.day, index, name: item.name })}
@@ -164,20 +171,30 @@ export default function Itinerary() {
                 <p className="mt-1 text-3xl font-black text-ink">{day.items.length}</p>
               </div>
               <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm font-bold text-slate-500">Coste estimado</p>
-                <p className="mt-1 text-2xl font-black text-ink">{day.estimatedCost}</p>
+                <p className="text-sm font-bold text-slate-500">Duración planificada</p>
+                <p className="mt-1 text-2xl font-black text-ink">{dayAnalysis.totalDurationLabel}</p>
+                <p className="mt-1 text-xs font-bold text-slate-400">Ventana del día: {dayAnalysis.daySpanLabel}</p>
               </div>
               <div className="rounded-2xl bg-slate-50 p-4">
                 <p className="text-sm font-bold text-slate-500">Tiempo caminando/transporte</p>
-                <p className="mt-1 text-lg font-black text-ink">{day.movement}</p>
+                <p className="mt-1 text-lg font-black text-ink">{dayAnalysis.travelLabel}</p>
               </div>
             </div>
           </SectionCard>
 
-          <SectionCard title="Recomendación">
-            <div className="rounded-3xl bg-ink p-5 text-white">
-              <Clock className="mb-4 text-primary-100" size={22} />
-              <p className="text-sm leading-6 text-slate-200">{day.recommendation}</p>
+          <SectionCard title="Recomendaciones de descanso">
+            <div className="grid gap-3">
+              {dayAnalysis.recommendations.map((recommendation) => (
+                <div key={recommendation} className="rounded-2xl bg-ink p-4 text-sm font-semibold leading-6 text-white">
+                  <Clock className="mb-3 text-primary-100" size={20} />
+                  {recommendation}
+                </div>
+              ))}
+              {dayAnalysis.restWindows.slice(0, 2).map((window) => (
+                <p key={`${window.after}-${window.before}`} className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
+                  Hay {Math.round(window.minutes)} min libres entre {window.after} y {window.before}.
+                </p>
+              ))}
             </div>
           </SectionCard>
 
@@ -212,6 +229,7 @@ export default function Itinerary() {
           </SectionCard>
         </aside>
       </div>
+
       <Modal open={modalOpen} onClose={() => { setModalOpen(false); setEditingActivity(null); }} title={editingActivity ? "Editar actividad" : "Añadir actividad"} description="Crea o ajusta una actividad del timeline del día elegido.">
         <form onSubmit={submit} className="grid gap-4">
           <FormError>{error}</FormError>

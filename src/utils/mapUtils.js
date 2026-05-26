@@ -1,19 +1,19 @@
 const KNOWN_LOCATIONS = [
-  { keys: ["fontana di trevi", "piazza di trevi"], lat: 41.9009, lng: 12.4833, zone: "Centro histórico" },
-  { keys: ["panteon", "pantheon", "piazza della rotonda"], lat: 41.8986, lng: 12.4769, zone: "Centro histórico" },
-  { keys: ["coliseo", "colosseo", "piazza del colosseo", "foro romano"], lat: 41.8902, lng: 12.4922, zone: "Centro histórico" },
-  { keys: ["museos vaticanos", "viale vaticano", "vaticano"], lat: 41.9065, lng: 12.4536, zone: "Vaticano" },
-  { keys: ["basilica de san pedro", "san pedro", "piazza san pietro"], lat: 41.9022, lng: 12.4539, zone: "Vaticano" },
-  { keys: ["castillo de sant'angelo", "castillo de santangelo", "lungotevere castello"], lat: 41.9031, lng: 12.4663, zone: "Vaticano" },
-  { keys: ["trastevere", "barrio de trastevere"], lat: 41.8896, lng: 12.4703, zone: "Trastevere" },
-  { keys: ["hotel roma centro", "via del corso", "via nazionale"], lat: 41.9016, lng: 12.4863, zone: "Centro histórico" },
-  { keys: ["piazza navona"], lat: 41.8992, lng: 12.4731, zone: "Centro histórico" },
-  { keys: ["piazza del campidoglio", "campidoglio"], lat: 41.8933, lng: 12.4828, zone: "Centro histórico" },
-  { keys: ["termini", "roma termini"], lat: 41.901, lng: 12.501, zone: "Termini" },
-  { keys: ["fiumicino", "aeropuerto de fiumicino"], lat: 41.8003, lng: 12.2389, zone: "Aeropuerto" },
-  { keys: ["torre eiffel", "eiffel"], lat: 48.8584, lng: 2.2945, zone: "Centro" },
-  { keys: ["louvre", "museo del louvre"], lat: 48.8606, lng: 2.3376, zone: "Centro" },
-  { keys: ["notre dame"], lat: 48.853, lng: 2.3499, zone: "Centro" },
+  { name: "Fontana di Trevi", keys: ["fontana di trevi", "piazza di trevi"], lat: 41.9009, lng: 12.4833, zone: "Centro histórico" },
+  { name: "Panteón", keys: ["panteon", "pantheon", "piazza della rotonda"], lat: 41.8986, lng: 12.4769, zone: "Centro histórico" },
+  { name: "Coliseo", keys: ["coliseo", "colosseo", "piazza del colosseo", "foro romano"], lat: 41.8902, lng: 12.4922, zone: "Centro histórico" },
+  { name: "Museos Vaticanos", keys: ["museos vaticanos", "viale vaticano", "vaticano"], lat: 41.9065, lng: 12.4536, zone: "Vaticano" },
+  { name: "Basílica de San Pedro", keys: ["basilica de san pedro", "san pedro", "piazza san pietro"], lat: 41.9022, lng: 12.4539, zone: "Vaticano" },
+  { name: "Castillo de Sant'Angelo", keys: ["castillo de sant'angelo", "castillo de santangelo", "lungotevere castello"], lat: 41.9031, lng: 12.4663, zone: "Vaticano" },
+  { name: "Trastevere", keys: ["trastevere", "barrio de trastevere"], lat: 41.8896, lng: 12.4703, zone: "Trastevere" },
+  { name: "Hotel Roma Centro", keys: ["hotel roma centro", "via del corso", "via nazionale"], lat: 41.9016, lng: 12.4863, zone: "Centro histórico" },
+  { name: "Piazza Navona", keys: ["piazza navona"], lat: 41.8992, lng: 12.4731, zone: "Centro histórico" },
+  { name: "Campidoglio", keys: ["piazza del campidoglio", "campidoglio"], lat: 41.8933, lng: 12.4828, zone: "Centro histórico" },
+  { name: "Roma Termini", keys: ["termini", "roma termini"], lat: 41.901, lng: 12.501, zone: "Termini" },
+  { name: "Aeropuerto de Fiumicino", keys: ["fiumicino", "aeropuerto de fiumicino"], lat: 41.8003, lng: 12.2389, zone: "Aeropuerto" },
+  { name: "Torre Eiffel", keys: ["torre eiffel", "eiffel"], lat: 48.8584, lng: 2.2945, zone: "Centro" },
+  { name: "Museo del Louvre", keys: ["louvre", "museo del louvre"], lat: 48.8606, lng: 2.3376, zone: "Centro" },
+  { name: "Notre Dame", keys: ["notre dame"], lat: 48.853, lng: 2.3499, zone: "Centro" },
 ];
 
 function clean(value) {
@@ -95,6 +95,34 @@ export function inferLocation(item = {}) {
   };
 }
 
+export function searchKnownLocations(query = "", limit = 6) {
+  const cleaned = clean(query);
+  if (cleaned.length < 2) return [];
+
+  return KNOWN_LOCATIONS
+    .map((location) => {
+      const haystack = [location.name, location.zone, ...location.keys].map(clean);
+      const exact = haystack.some((value) => value === cleaned);
+      const starts = haystack.some((value) => value.startsWith(cleaned));
+      const contains = haystack.some((value) => value.includes(cleaned) || cleaned.includes(value));
+      if (!exact && !starts && !contains) return null;
+      return {
+        id: `search-${clean(location.name)}-${location.lat}-${location.lng}`,
+        name: location.name,
+        type: "Resultado",
+        source: "search",
+        address: location.name,
+        zone: location.zone,
+        lat: location.lat,
+        lng: location.lng,
+        score: exact ? 3 : starts ? 2 : 1,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+    .slice(0, limit);
+}
+
 export function normalizeMappableData(data = {}) {
   return {
     ...data,
@@ -142,12 +170,13 @@ export function getDayMapPoints(day = {}, { places = [], restaurants = [], lodgi
     }
   }
 
-  (day.items || []).forEach((activity) => {
+  (day.items || []).forEach((activity, index) => {
     const related = findRelatedEntity(activity, [places, restaurants, lodgings]);
     const relatedLocation = related?.location?.lat !== undefined ? related.location : related ? inferLocation(related) : null;
     const location = activity.location?.lat !== undefined ? activity.location : relatedLocation || inferLocation(activity);
     const point = {
-      id: `${day.day}-${activity.time}-${activity.name}`,
+      id: `${day.day}-${index}-${activity.time}-${activity.name}`,
+      activityIndex: index,
       name: activity.name,
       type: activity.type,
       time: activity.time,
@@ -245,7 +274,7 @@ export function buildOsmTiles(center, zoom = 14, width = 960, height = 520) {
     }
   }
 
-  return { tiles, centerPx, startX, startY, width, height, zoom };
+  return { tiles, centerPx, startX, startY, width, height, zoom, center };
 }
 
 export function projectPointToMap(point, mapModel) {
@@ -254,6 +283,22 @@ export function projectPointToMap(point, mapModel) {
     left: px.x - mapModel.startX,
     top: px.y - mapModel.startY,
   };
+}
+
+export function clusterMapPoints(points = [], mapModel, radius = 34) {
+  const clusters = [];
+  points.filter(hasCoordinates).forEach((point, index) => {
+    const position = projectPointToMap(point, mapModel);
+    const existing = clusters.find((cluster) => Math.hypot(cluster.left - position.left, cluster.top - position.top) <= radius);
+    if (existing) {
+      existing.points.push({ ...point, originalIndex: index });
+      existing.left = existing.points.reduce((sum, item) => sum + projectPointToMap(item, mapModel).left, 0) / existing.points.length;
+      existing.top = existing.points.reduce((sum, item) => sum + projectPointToMap(item, mapModel).top, 0) / existing.points.length;
+      return;
+    }
+    clusters.push({ id: `cluster-${point.id}`, left: position.left, top: position.top, points: [{ ...point, originalIndex: index }] });
+  });
+  return clusters;
 }
 
 export function orderActivitiesByProximity(items = []) {

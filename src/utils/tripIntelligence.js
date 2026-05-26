@@ -16,18 +16,69 @@ function parseNumber(value) {
   return Number.parseInt(String(value || "").replace(/[^\d]/g, ""), 10) || 0;
 }
 
-function timeToMinutes(value) {
+export function timeToMinutes(value) {
   const match = String(value || "").match(/^(\d{1,2}):(\d{2})/);
   if (!match) return null;
   return Number(match[1]) * 60 + Number(match[2]);
 }
 
-function durationToMinutes(value) {
+export function durationToMinutes(value) {
   const text = String(value || "").toLowerCase();
   const hours = Number(text.match(/(\d+(?:[.,]\d+)?)\s*h/)?.[1]?.replace(",", ".") || 0);
   const minutes = Number(text.match(/(\d+)\s*m/)?.[1] || 0);
   const plain = Number(text.match(/^\s*(\d+)\s*$/)?.[1] || 0);
   return Math.round(hours * 60 + minutes + plain);
+}
+
+function minutesToLabel(minutes) {
+  if (!minutes) return "0 min";
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (!hours) return `${rest} min`;
+  return rest ? `${hours} h ${rest} min` : `${hours} h`;
+}
+
+export function analyzeItineraryDay(day = {}) {
+  const items = [...(day.items || [])].sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
+  const totalDuration = items.reduce((sum, item) => sum + durationToMinutes(item.duration), 0);
+  const travelMinutes = items.reduce((sum, item) => sum + durationToMinutes(item.travelTime), 0);
+  const timedItems = items.map((item) => ({
+    item,
+    start: timeToMinutes(item.time),
+    duration: durationToMinutes(item.duration),
+  }));
+  const firstStart = timedItems.find((entry) => entry.start !== null)?.start ?? null;
+  const last = [...timedItems].reverse().find((entry) => entry.start !== null);
+  const daySpan = firstStart !== null && last ? Math.max(last.start + last.duration - firstStart, 0) : 0;
+  const restWindows = [];
+  const overlaps = [];
+
+  timedItems.forEach((entry, index) => {
+    const next = timedItems[index + 1];
+    if (entry.start === null || !next || next.start === null) return;
+    const end = entry.start + entry.duration;
+    const gap = next.start - end;
+    if (entry.duration > 0 && gap < 0) overlaps.push({ current: entry.item, next: next.item, minutes: Math.abs(gap) });
+    if (gap >= 90) restWindows.push({ after: entry.item.name, before: next.item.name, minutes: gap });
+  });
+
+  const recommendations = [];
+  if (items.length >= 7) recommendations.push("Día cargado: reserva una pausa real para comer o descansar.");
+  if (totalDuration >= 480) recommendations.push("La duración total supera 8 horas. Conviene reducir una visita o dejar margen.");
+  if (!restWindows.length && items.length >= 4) recommendations.push("No hay huecos largos entre actividades. Añade 30-45 minutos de margen.");
+  if (!overlaps.length && items.length) recommendations.push("No se detectan solapes importantes en este día.");
+
+  return {
+    totalDuration,
+    travelMinutes,
+    daySpan,
+    restWindows,
+    overlaps,
+    recommendations,
+    totalDurationLabel: minutesToLabel(totalDuration),
+    travelLabel: minutesToLabel(travelMinutes),
+    daySpanLabel: minutesToLabel(daySpan),
+  };
 }
 
 export function getTripCountdown(trip = {}, now = new Date()) {
