@@ -57,6 +57,7 @@ const navGroups = [
     items: [
       { label: "Resumen", path: "summary", icon: Map, needsTrip: true },
       { label: "Itinerario", path: "itinerary", icon: Route, needsTrip: true },
+      { label: "Mapa", path: "map", icon: MapPinned, needsTrip: true },
       { label: "Hoy", path: "today", match: ["today", "day"], icon: CalendarCheck, needsTrip: true },
     ],
   },

@@ -1,5 +1,5 @@
 import React from "react";
-import { Backpack, CalendarDays, CheckCircle2, CheckSquare, FileText, Hotel, Lightbulb, Plane, Printer, ReceiptText, Route, Ticket, WalletCards } from "lucide-react";
+import { Backpack, CalendarDays, CheckCircle2, CheckSquare, Coffee, FileText, Hotel, Lightbulb, MapPinned, Plane, Printer, ReceiptText, Route, Sparkles, Ticket, UsersRound, WalletCards } from "lucide-react";
 import { Link } from "react-router-dom";
 import Badge from "../components/Badge.jsx";
 import EmptyState from "../components/EmptyState.jsx";
@@ -11,9 +11,11 @@ import StatCard from "../components/StatCard.jsx";
 import TripHeader from "../components/TripHeader.jsx";
 import { useAppState } from "../state/AppStateContext.jsx";
 import { getFinalReadiness, getTripCountdown, getTripValidationInsights } from "../utils/tripIntelligence.js";
+import { getNearbyUsefulPoints } from "../utils/mapUtils.js";
 
 const summaryQuickLinks = [
   ["Itinerario", "itinerary", Route],
+  ["Mapa", "map", MapPinned],
   ["Gastos", "budget", ReceiptText],
   ["Documentos", "documents", FileText],
   ["Checklist", "checklist", CheckSquare],
@@ -27,7 +29,7 @@ function money(value) {
 }
 
 export default function TripSummary() {
-  const { activeTrip, activeTripId, itineraryDays, transports, lodgings, checklist, expenses, budgetRows, places, packingItems = [], documents = [] } = useAppState();
+  const { activeTrip, activeTripId, itineraryDays, transports, lodgings, checklist, expenses, budgetRows, places, participants = [], packingItems = [], documents = [] } = useAppState();
   const allTasks = Object.values(checklist).flat();
   const pendingTasks = allTasks.filter((task) => !task.done);
   const pendingPacking = packingItems.filter((item) => !item.packed);
@@ -40,6 +42,12 @@ export default function TripSummary() {
   const finalReadiness = activeTrip ? getFinalReadiness(activeTrip, activeTripData) : null;
   const nextTransport = transports[0];
   const lodging = lodgings[0];
+  const nearbyUsefulPoints = getNearbyUsefulPoints(lodgings);
+  const favoritePlaces = places.filter((place) => place.mustSee || String(place.priority).toLowerCase() === "alta").slice(0, 4);
+  const participantExpenseCount = participants.map((participant) => ({
+    ...participant,
+    expenses: expenses.filter((expense) => expense.paidBy === participant.id || expense.splitWith?.includes(participant.id)).length,
+  }));
   const trip = activeTrip
     ? {
         ...activeTrip,
@@ -176,9 +184,45 @@ export default function TripSummary() {
               <Link to={`/trips/${activeTripId}/suggestions`} className="primary-button w-fit">Ver sugerencias</Link>
             </div>
           </SectionCard>
+
+          <SectionCard title="Imprescindibles y prioridades">
+            {favoritePlaces.length ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {favoritePlaces.map((place) => (
+                  <Link key={place.name} to={`/trips/${activeTripId}/places`} className="rounded-2xl border border-amber-100 bg-amber-50 p-4 transition hover:bg-amber-100">
+                    <Sparkles className="text-amber-700" size={18} />
+                    <p className="mt-3 font-black text-ink">{place.name}</p>
+                    <p className="mt-1 text-sm font-bold text-amber-800">{place.day} · {place.price}</p>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="Sin imprescindibles marcados" description="Marca lugares como imprescindibles para verlos destacados en el resumen." />
+            )}
+          </SectionCard>
         </div>
 
         <aside className="grid gap-6">
+          <SectionCard title="Grupo del viaje">
+            {participants.length ? (
+              <div className="grid gap-3">
+                {participantExpenseCount.map((participant) => (
+                  <div key={participant.id} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-primary-700 shadow-sm">
+                      <UsersRound size={17} />
+                    </span>
+                    <div>
+                      <p className="font-black text-ink">{participant.name}</p>
+                      <p className="text-xs font-bold text-slate-400">{participant.expenses} gastos vinculados</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="Sin participantes" description="Añade personas al viaje para simular tareas, gastos y decisiones del grupo." />
+            )}
+          </SectionCard>
+
           <SectionCard title="Próximo transporte">
             {nextTransport ? (
               <div className="rounded-3xl bg-[linear-gradient(135deg,#ecfeff_0%,#ffffff_100%)] p-5">
@@ -226,8 +270,27 @@ export default function TripSummary() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-        <SectionCard title="Mapa del viaje" className="xl:order-1">
-          <MapPlaceholder points={places.length ? places.map((place) => place.name) : [trip.destination]} title={trip.destination} />
+          <SectionCard title="Mapa del viaje" className="xl:order-1">
+            <MapPlaceholder points={places.length ? places.map((place) => place.name) : [trip.destination]} title={trip.destination} />
+          {nearbyUsefulPoints.length ? (
+            <div className="mt-4 rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-700">
+                  <Coffee size={18} />
+                </span>
+                <div>
+                  <p className="font-black text-ink">{nearbyUsefulPoints.length} sitios útiles cerca del alojamiento</p>
+                  <p className="mt-1 text-sm text-emerald-800">Bares, restaurantes, cafeterías y compras generados desde la ubicación guardada.</p>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          <div className="mt-4 flex justify-end">
+            <Link to={`/trips/${activeTripId}/map`} className="primary-button">
+              <MapPinned size={16} />
+              Abrir mapa
+            </Link>
+          </div>
         </SectionCard>
 
         <SectionCard title="Accesos rápidos" className="xl:order-2">

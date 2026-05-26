@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { AlertTriangle, CalendarDays, Clock, Footprints, Lightbulb, Plus, ReceiptText, Route } from "lucide-react";
+import { AlertTriangle, CalendarDays, Clock, Footprints, Lightbulb, MapPinned, Plus, ReceiptText, Route, Shuffle } from "lucide-react";
 import { Link } from "react-router-dom";
 import DayTabs from "../components/DayTabs.jsx";
 import { FormError, FormInput, FormSelect, FormTextarea } from "../components/FormControls.jsx";
@@ -13,7 +13,7 @@ import { useAppState } from "../state/AppStateContext.jsx";
 import { getAccommodationIssues, getItineraryIssues } from "../utils/tripIntelligence.js";
 
 export default function Itinerary() {
-  const { itineraryDays, lodgings, activeTrip, activeTripId, addActivity, updateActivity, deleteActivity } = useAppState();
+  const { itineraryDays, lodgings, activeTrip, activeTripId, addActivity, updateActivity, deleteActivity, reorderDayByProximity } = useAppState();
   const [active, setActive] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
@@ -28,6 +28,8 @@ export default function Itinerary() {
     duration: "",
     travelTime: "",
     cost: "",
+    lat: "",
+    lng: "",
     notes: "",
   });
   const day = itineraryDays[active] || itineraryDays[0];
@@ -64,6 +66,8 @@ export default function Itinerary() {
       duration: item.duration || "",
       travelTime: item.travelTime || "",
       cost: item.cost || "",
+      lat: item.location?.lat ?? "",
+      lng: item.location?.lng ?? "",
       notes: item.notes || "",
     });
     setError("");
@@ -83,7 +87,7 @@ export default function Itinerary() {
     setEditingActivity(null);
     const nextIndex = itineraryDays.findIndex((item) => item.day === form.day);
     if (nextIndex >= 0) setActive(nextIndex);
-    setForm({ day: form.day, time: "", name: "", type: "Visita", address: "", duration: "", travelTime: "", cost: "", notes: "" });
+    setForm({ day: form.day, time: "", name: "", type: "Visita", address: "", duration: "", travelTime: "", cost: "", lat: "", lng: "", notes: "" });
   }
 
   return (
@@ -99,6 +103,12 @@ export default function Itinerary() {
                   <CalendarDays size={17} /> {activeTrip?.dates || "Fechas por definir"} · {itineraryDays.length} días organizados
                 </p>
               </div>
+              <Link to={`/trips/${activeTripId}/map`} className="secondary-button shrink-0 px-5 py-3">
+                <MapPinned size={18} /> Ver mapa del dÃ­a
+              </Link>
+              <button className="secondary-button shrink-0 px-5 py-3" onClick={() => reorderDayByProximity(day.day)}>
+                <Shuffle size={18} /> Ordenar por cercanía
+              </button>
               <button className="primary-button shrink-0 px-5 py-3" onClick={openModal}>
                 <Plus size={18} /> Añadir actividad
               </button>
@@ -218,6 +228,8 @@ export default function Itinerary() {
             <FormInput label="Duración estimada" value={form.duration} onChange={(event) => update("duration", event.target.value)} placeholder="1 h" />
             <FormInput label="Tiempo desde el punto anterior" value={form.travelTime} onChange={(event) => update("travelTime", event.target.value)} placeholder="15 min caminando" />
             <FormInput label="Coste estimado" value={form.cost} onChange={(event) => update("cost", event.target.value)} placeholder="Gratis" />
+            <FormInput label="Latitud" type="number" step="any" value={form.lat} onChange={(event) => update("lat", event.target.value)} placeholder="41.9009" />
+            <FormInput label="Longitud" type="number" step="any" value={form.lng} onChange={(event) => update("lng", event.target.value)} placeholder="12.4833" />
           </div>
           <FormTextarea label="Notas" value={form.notes} onChange={(event) => update("notes", event.target.value)} placeholder="Consejo breve para recordar durante el viaje" />
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">

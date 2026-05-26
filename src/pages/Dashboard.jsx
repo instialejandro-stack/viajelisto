@@ -40,7 +40,7 @@ const quickLinks = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { trips, ideas, activeTrip, activeTripId, archiveTrip, deleteTrip, duplicateTrip, resetDemo, setActiveTripId } = useAppState();
+  const { trips, ideas, activeTrip, activeTripId, archiveTrip, deleteTrip, duplicateTrip, loadExampleTrip, resetDemo, setActiveTripId } = useAppState();
   const [tripModalOpen, setTripModalOpen] = useState(false);
   const [editingTrip, setEditingTrip] = useState(null);
   const [deletingTrip, setDeletingTrip] = useState(null);
@@ -79,6 +79,9 @@ export default function Dashboard() {
               </button>
               <button className="secondary-button px-5 py-2.5" onClick={() => setGuideOpen(true)}>
                 <PlayCircle size={17} /> Ver demo guiada
+              </button>
+              <button className="secondary-button px-5 py-2.5" onClick={() => { loadExampleTrip(); setGuideOpen(true); }}>
+                <Sparkles size={17} /> Modo presentación
               </button>
             </div>
 

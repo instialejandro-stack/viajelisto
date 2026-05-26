@@ -12,7 +12,7 @@ import StatCard from "../components/StatCard.jsx";
 import { useAppState } from "../state/AppStateContext.jsx";
 
 const filters = ["Todos", "Monumentos", "Museos", "Barrios", "Gratis", "Imprescindibles", "Requieren reserva"];
-const initialForm = { name: "", category: "Monumento", priority: "Alta", price: "Gratis", duration: "", needsBooking: "no", mustSee: "no", day: "Sin asignar", zone: "", note: "" };
+const initialForm = { name: "", category: "Monumento", priority: "Alta", price: "Gratis", duration: "", needsBooking: "no", mustSee: "no", day: "Sin asignar", zone: "", lat: "", lng: "", note: "" };
 
 export default function Places() {
   const { places, activeTrip, addPlace, updatePlace, deletePlace } = useAppState();
@@ -48,6 +48,8 @@ export default function Places() {
       mustSee: place.mustSee ? "sí" : "no",
       day: place.day || "Sin asignar",
       zone: place.zone || "",
+      lat: place.location?.lat ?? "",
+      lng: place.location?.lng ?? "",
       note: place.note || "",
     });
     setError("");
@@ -122,6 +124,10 @@ export default function Places() {
               <option value="no">No</option>
               <option value="sí">Sí</option>
             </FormSelect>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormInput label="Latitud" type="number" step="any" value={form.lat} onChange={(event) => update("lat", event.target.value)} placeholder="41.8902" />
+            <FormInput label="Longitud" type="number" step="any" value={form.lng} onChange={(event) => update("lng", event.target.value)} placeholder="12.4922" />
           </div>
           <FormTextarea label="Nota" value={form.note} onChange={(event) => update("note", event.target.value)} placeholder="Comprar entrada con antelación." />
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">

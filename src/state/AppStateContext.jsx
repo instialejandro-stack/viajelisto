@@ -15,6 +15,7 @@ import {
 import useLocalStorage from "../hooks/useLocalStorage.js";
 import { tripTemplates } from "../data/tripTemplates.js";
 import { buildItineraryDaysFromRange, formatDateRange, parseTripDateRange } from "../utils/dateUtils.js";
+import { buildLocationFromForm, normalizeMappableData, orderActivitiesByProximity } from "../utils/mapUtils.js";
 
 const AppStateContext = createContext(null);
 const EXAMPLE_TRIP_ID = String(initialTrips[0].id);
@@ -114,7 +115,7 @@ function normalizeReceipt(receipt) {
 
 function normalizeTripData(data, trip = {}) {
   const participants = ensureParticipants(data, trip);
-  return {
+  return normalizeMappableData({
     ...data,
     participants,
     expenses: (data.expenses || []).map((expense) => normalizeExpenseSharing(expense, participants)),
@@ -133,7 +134,7 @@ function normalizeTripData(data, trip = {}) {
     diaryEntries: data.diaryEntries || [],
     memories: data.memories || [],
     reviews: data.reviews || [],
-  };
+  });
 }
 
 function historyItem(action, detail) {
@@ -547,7 +548,7 @@ export function AppStateProvider({ children }) {
         if (day.day !== form.day) return day;
         const nextItems = [
           ...day.items,
-          { time: form.time, name: form.name, type: form.type, address: form.address, duration: form.duration, travelTime: form.travelTime, cost: form.cost, notes: form.notes },
+          { time: form.time, name: form.name, type: form.type, address: form.address, duration: form.duration, travelTime: form.travelTime, cost: form.cost, notes: form.notes, location: buildLocationFromForm(form) },
         ].sort((a, b) => a.time.localeCompare(b.time));
         return { ...day, items: nextItems };
       }),
@@ -566,7 +567,7 @@ export function AppStateProvider({ children }) {
           if (day.day !== form.day) return day;
           const nextItems = [
             ...day.items,
-            { time: form.time, name: form.name, type: form.type, address: form.address, duration: form.duration, travelTime: form.travelTime, cost: form.cost, notes: form.notes },
+            { time: form.time, name: form.name, type: form.type, address: form.address, duration: form.duration, travelTime: form.travelTime, cost: form.cost, notes: form.notes, location: buildLocationFromForm(form) },
           ].sort((a, b) => a.time.localeCompare(b.time));
           return { ...day, items: nextItems };
         }),
@@ -580,8 +581,20 @@ export function AppStateProvider({ children }) {
       itineraryDays: data.itineraryDays.map((day) =>
         day.day === dayName ? { ...day, items: day.items.filter((_, itemIndex) => itemIndex !== index) } : day
       ),
+      history: [historyItem("Actividad eliminada", dayName), ...(data.history || [])],
     }));
-    addHistory("Actividad actualizada", form.name);
+  }
+
+  function reorderDayByProximity(dayName) {
+    updateActiveTripData((data) => ({
+      ...data,
+      itineraryDays: data.itineraryDays.map((day) =>
+        day.day === dayName
+          ? { ...day, items: orderActivitiesByProximity(day.items || []) }
+          : day
+      ),
+      history: [historyItem("Itinerario ordenado por cercanía", dayName), ...(data.history || [])],
+    }));
   }
 
   function toggleTask(group, index) {
@@ -909,6 +922,7 @@ export function AppStateProvider({ children }) {
       day: form.day,
       needsBooking: form.needsBooking === "sí",
       zone: form.zone,
+      location: buildLocationFromForm(form),
       mustSee: form.mustSee === "sí",
       note: form.note,
     };
@@ -926,6 +940,7 @@ export function AppStateProvider({ children }) {
       day: form.day,
       needsBooking: form.needsBooking === "sí",
       zone: form.zone,
+      location: buildLocationFromForm(form),
       mustSee: form.mustSee === "sí",
       note: form.note,
     };
@@ -1021,6 +1036,8 @@ export function AppStateProvider({ children }) {
       name: form.name,
       type: form.type,
       address: form.address,
+      zone: form.zone || "",
+      location: buildLocationFromForm(form),
       checkIn: form.checkIn,
       checkOut: form.checkOut,
       nights: form.nights,
@@ -1038,6 +1055,8 @@ export function AppStateProvider({ children }) {
       name: form.name,
       type: form.type,
       address: form.address,
+      zone: form.zone || "",
+      location: buildLocationFromForm(form),
       checkIn: form.checkIn,
       checkOut: form.checkOut,
       nights: form.nights,
@@ -1168,6 +1187,7 @@ export function AppStateProvider({ children }) {
         addActivity,
         updateActivity,
         deleteActivity,
+        reorderDayByProximity,
         toggleTask,
         addTask,
         updateTask,

@@ -1,9 +1,11 @@
 import React from "react";
-import { ArrowRight, BedDouble, CalendarDays, MapPin, Moon, WalletCards } from "lucide-react";
+import { ArrowRight, BedDouble, CalendarDays, Coffee, MapPin, Moon, WalletCards } from "lucide-react";
 import Badge from "./Badge.jsx";
 import ItemActions from "./ItemActions.jsx";
+import { getNearbyUsefulPoints } from "../utils/mapUtils.js";
 
 export default function AccommodationCard({ lodging, onEdit, onDelete }) {
+  const nearbyCount = getNearbyUsefulPoints([lodging]).length;
   return (
     <article className="card overflow-hidden">
       <div className="grid lg:grid-cols-[0.95fr_1.05fr]">
@@ -35,6 +37,11 @@ export default function AccommodationCard({ lodging, onEdit, onDelete }) {
             {(lodging.services || []).map((service) => (
               <span key={service} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">{service}</span>
             ))}
+            {nearbyCount ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                <Coffee size={13} /> {nearbyCount} sitios cercanos
+              </span>
+            ) : null}
           </div>
           <p className="mt-4 text-sm leading-6 text-slate-500">{lodging.notes}</p>
           <button className="secondary-button mt-5">

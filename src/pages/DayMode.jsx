@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { CalendarDays, CheckCircle2, Clock, MapPin, Route } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock, FileText, MapPin, ReceiptText, Route } from "lucide-react";
+import { Link } from "react-router-dom";
 import DayTabs from "../components/DayTabs.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import PageHeader from "../components/PageHeader.jsx";
@@ -8,12 +9,15 @@ import StatCard from "../components/StatCard.jsx";
 import { useAppState } from "../state/AppStateContext.jsx";
 
 export default function DayMode() {
-  const { itineraryDays, dayModeChecks = {}, toggleDayModeCheck } = useAppState();
+  const { activeTripId, itineraryDays, dayModeChecks = {}, documents = [], expenses = [], transports = [], toggleDayModeCheck } = useAppState();
   const [active, setActive] = useState(0);
   const day = itineraryDays[active] || itineraryDays[0];
   const items = day?.items || [];
   const done = items.filter((item) => dayModeChecks[`${day.day}-${item.time}-${item.name}`]).length;
   const nextItem = items.find((item) => !dayModeChecks[`${day.day}-${item.time}-${item.name}`]);
+  const dayDocuments = documents.filter((document) => String(document.related || document.date || "").toLowerCase().includes(String(day?.day || "").toLowerCase()) || String(document.date || "").includes(day?.date || ""));
+  const pendingExpenses = expenses.filter((expense) => expense.status === "pendiente").slice(0, 3);
+  const dayTransports = transports.filter((transport) => String(transport.date || "").includes(day?.date || "") || items.some((item) => item.name?.includes(transport.origin) || item.name?.includes(transport.destination)));
 
   return (
     <div className="grid gap-6">
@@ -52,6 +56,9 @@ export default function DayMode() {
                   </label>
                 );
               })}
+              <Link to={`/trips/${activeTripId}/map`} className="secondary-button justify-center">
+                <MapPin size={17} /> Ver mapa del dÃ­a
+              </Link>
             </div>
           ) : (
             <EmptyState title="No hay actividades para este día" description="Añade actividades al itinerario para usar el modo día durante el viaje." />
@@ -71,6 +78,13 @@ export default function DayMode() {
               <EmptyState title="Día completado" description="No quedan actividades pendientes en este día." />
             )}
           </SectionCard>
+          <SectionCard title="Para llevar hoy">
+            <div className="grid gap-3">
+              <InfoLine icon={FileText} label="Documentos" value={dayDocuments.length ? `${dayDocuments.length} relacionados` : "Sin documentos vinculados"} />
+              <InfoLine icon={ReceiptText} label="Gastos pendientes" value={pendingExpenses.length ? `${pendingExpenses.length} por revisar` : "Nada pendiente"} />
+              <InfoLine icon={Route} label="Transportes" value={dayTransports.length ? `${dayTransports.length} previstos` : "Sin transportes este día"} />
+            </div>
+          </SectionCard>
           <SectionCard title="Recordatorios útiles">
             <div className="grid gap-3 text-sm font-bold text-slate-600">
               <p className="flex gap-2 rounded-2xl bg-slate-50 p-4"><MapPin size={17} /> Revisa dirección y margen de desplazamiento.</p>
@@ -79,6 +93,20 @@ export default function DayMode() {
           </SectionCard>
         </aside>
       </div>
+    </div>
+  );
+}
+
+function InfoLine({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-primary-700 shadow-sm">
+        <Icon size={17} />
+      </span>
+      <span>
+        <span className="block text-xs font-black uppercase text-slate-400">{label}</span>
+        <span className="block text-sm font-black text-ink">{value}</span>
+      </span>
     </div>
   );
 }

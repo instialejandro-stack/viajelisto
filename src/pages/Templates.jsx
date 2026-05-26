@@ -18,6 +18,7 @@ export default function Templates() {
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 text-primary-700"><LayoutTemplate size={22} /></span>
             <h2 className="mt-4 text-lg font-black text-ink">{template.name}</h2>
             <p className="mt-1 text-sm font-bold text-slate-500">{template.type}</p>
+            <p className="mt-3 text-sm leading-6 text-slate-500">{template.bestFor}</p>
             <div className="mt-4 flex flex-wrap gap-2">{template.includes.map((item) => <span key={item} className="rounded-full bg-slate-50 px-3 py-1 text-xs font-black text-slate-600">{item}</span>)}</div>
           </button>
         ))}

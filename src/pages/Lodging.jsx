@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BedDouble, CheckCircle2, Moon, Plus, WalletCards } from "lucide-react";
+import { BedDouble, CheckCircle2, Coffee, Moon, Plus, WalletCards } from "lucide-react";
 import AccommodationCard from "../components/AccommodationCard.jsx";
 import AccommodationFormModal from "../components/AccommodationFormModal.jsx";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
@@ -8,6 +8,7 @@ import SectionCard from "../components/SectionCard.jsx";
 import StatCard from "../components/StatCard.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import { useAppState } from "../state/AppStateContext.jsx";
+import { getNearbyUsefulPoints } from "../utils/mapUtils.js";
 
 export default function Lodging() {
   const { lodgings, deleteAccommodation } = useAppState();
@@ -16,6 +17,7 @@ export default function Lodging() {
   const [deleting, setDeleting] = useState(null);
   const total = lodgings.reduce((sum, item) => sum + Number.parseInt(item.price, 10), 0);
   const confirmed = lodgings.filter((item) => item.status === "reservado").length;
+  const nearbyCount = getNearbyUsefulPoints(lodgings).length;
 
   return (
     <div className="grid gap-6">
@@ -35,7 +37,7 @@ export default function Lodging() {
         <StatCard icon={Moon} label="Noches reservadas" value={lodgings[0]?.nights || "0"} hint={lodgings[0]?.days || "Por definir"} />
         <StatCard icon={BedDouble} label="Alojamientos" value={lodgings.length} hint="Estancia principal" accent="emerald" />
         <StatCard icon={WalletCards} label="Coste total" value={`${total} €`} hint="Reserva completa" accent="violet" />
-        <StatCard icon={CheckCircle2} label="Reservas confirmadas" value={confirmed} hint="Sin acciones urgentes" accent="emerald" />
+        <StatCard icon={nearbyCount ? Coffee : CheckCircle2} label={nearbyCount ? "Cerca del alojamiento" : "Reservas confirmadas"} value={nearbyCount || confirmed} hint={nearbyCount ? "Comida y compras útiles" : "Sin acciones urgentes"} accent="emerald" />
       </div>
 
       <SectionCard title="Estancias guardadas">

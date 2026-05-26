@@ -19,6 +19,7 @@ import Documents from "./pages/Documents.jsx";
 import PreparationChecklist from "./pages/PreparationChecklist.jsx";
 import Packing from "./pages/Packing.jsx";
 import DayMode from "./pages/DayMode.jsx";
+import TripMap from "./pages/TripMap.jsx";
 import Reservations from "./pages/Reservations.jsx";
 import GroupVotes from "./pages/GroupVotes.jsx";
 import Currency from "./pages/Currency.jsx";
@@ -83,6 +84,8 @@ createRoot(document.getElementById("root")).render(
             <Route path="/valoraciones" element={<LegacyTripRedirect section="review" />} />
             <Route path="/review" element={<LegacyTripRedirect section="review" />} />
             <Route path="/comprobador" element={<LegacyTripRedirect section="final-check" />} />
+            <Route path="/mapa" element={<LegacyTripRedirect section="map" />} />
+            <Route path="/map" element={<LegacyTripRedirect section="map" />} />
 
             {/* Trip routes */}
             <Route path="/trips/:tripId" element={<LegacyTripRedirect section="summary" />} />
@@ -90,6 +93,7 @@ createRoot(document.getElementById("root")).render(
             <Route path="/trips/:tripId/suggestions" element={<Suggestions />} />
             <Route path="/trips/:tripId/final-check" element={<FinalCheck />} />
             <Route path="/trips/:tripId/itinerary" element={<Itinerary />} />
+            <Route path="/trips/:tripId/map" element={<TripMap />} />
             <Route path="/trips/:tripId/transport" element={<Transport />} />
             <Route path="/trips/:tripId/accommodation" element={<Lodging />} />
             <Route path="/trips/:tripId/places" element={<Places />} />

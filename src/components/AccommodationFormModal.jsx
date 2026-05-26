@@ -3,7 +3,7 @@ import { FormError, FormInput, FormSelect, FormTextarea } from "./FormControls.j
 import Modal from "./Modal.jsx";
 import { useAppState } from "../state/AppStateContext.jsx";
 
-const initialForm = { name: "", type: "Hotel", address: "", checkIn: "", checkOut: "", nights: "", price: "", status: "pendiente", services: "", days: "", bookingUrl: "", notes: "" };
+const initialForm = { name: "", type: "Hotel", address: "", zone: "", lat: "", lng: "", checkIn: "", checkOut: "", nights: "", price: "", status: "pendiente", services: "", days: "", bookingUrl: "", notes: "" };
 
 function toForm(lodging) {
   if (!lodging) return initialForm;
@@ -11,6 +11,9 @@ function toForm(lodging) {
     name: lodging.name || "",
     type: lodging.type || "Hotel",
     address: lodging.address || "",
+    zone: lodging.zone || lodging.location?.zone || "",
+    lat: lodging.location?.lat ?? "",
+    lng: lodging.location?.lng ?? "",
     checkIn: lodging.checkIn || "",
     checkOut: lodging.checkOut || "",
     nights: lodging.nights || "",
@@ -61,6 +64,9 @@ export default function AccommodationFormModal({ open, onClose, lodging, index }
             {["Hotel", "Apartamento", "Hostal", "Casa", "Otro"].map((type) => <option key={type}>{type}</option>)}
           </FormSelect>
           <FormInput label="Dirección" value={form.address} onChange={(event) => update("address", event.target.value)} placeholder="Rue de Rivoli" />
+          <FormInput label="Zona" value={form.zone} onChange={(event) => update("zone", event.target.value)} placeholder="Centro" />
+          <FormInput label="Latitud" type="number" step="any" value={form.lat} onChange={(event) => update("lat", event.target.value)} placeholder="40.8518" />
+          <FormInput label="Longitud" type="number" step="any" value={form.lng} onChange={(event) => update("lng", event.target.value)} placeholder="14.2681" />
           <FormInput label="Check-in" value={form.checkIn} onChange={(event) => update("checkIn", event.target.value)} placeholder="3 junio, 15:00" />
           <FormInput label="Check-out" value={form.checkOut} onChange={(event) => update("checkOut", event.target.value)} placeholder="8 junio, 11:00" />
           <FormInput label="Noches" value={form.nights} onChange={(event) => update("nights", event.target.value)} placeholder="5 noches" />
