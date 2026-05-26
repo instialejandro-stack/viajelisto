@@ -213,6 +213,14 @@ export function lonLatToWorldPixel(lat, lng, zoom = 14) {
   };
 }
 
+export function worldPixelToLonLat(x, y, zoom = 14) {
+  const scale = 256 * 2 ** zoom;
+  const lng = (Number(x) / scale) * 360 - 180;
+  const n = Math.PI - (2 * Math.PI * Number(y)) / scale;
+  const lat = (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+  return { lat, lng };
+}
+
 export function buildOsmTiles(center, zoom = 14, width = 960, height = 520) {
   const centerPx = lonLatToWorldPixel(center.lat, center.lng, zoom);
   const startX = centerPx.x - width / 2;

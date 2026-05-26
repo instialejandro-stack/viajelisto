@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { CalendarDays, Clock, Coffee, MapPin, Navigation, Plus, Route, ShoppingBasket } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { CalendarDays, Clock, Coffee, LocateFixed, MapPin, Minus, Navigation, Plus, Route, ShoppingBasket } from "lucide-react";
 import { Link } from "react-router-dom";
 import Badge from "../components/Badge.jsx";
 import DayTabs from "../components/DayTabs.jsx";
@@ -8,20 +8,85 @@ import PageHeader from "../components/PageHeader.jsx";
 import SectionCard from "../components/SectionCard.jsx";
 import StatCard from "../components/StatCard.jsx";
 import { useAppState } from "../state/AppStateContext.jsx";
-import { buildOsmTiles, getDayMapPoints, getMapCenter, getNearbyUsefulPoints, hasCoordinates, projectPointToMap } from "../utils/mapUtils.js";
+import { buildOsmTiles, getDayMapPoints, getMapCenter, getNearbyUsefulPoints, hasCoordinates, lonLatToWorldPixel, projectPointToMap, worldPixelToLonLat } from "../utils/mapUtils.js";
 
 function MapCanvas({ points, title }) {
   const mappable = points.filter(hasCoordinates);
-  const map = buildOsmTiles(getMapCenter(mappable), 14);
+  const initialCenter = useMemo(() => getMapCenter(mappable), [mappable]);
+  const containerRef = useRef(null);
+  const dragRef = useRef(null);
+  const [center, setCenter] = useState(initialCenter);
+  const [zoom, setZoom] = useState(14);
+  const [size, setSize] = useState({ width: 960, height: 520 });
+  const map = buildOsmTiles(center, zoom, size.width, size.height);
+
+  useEffect(() => {
+    setCenter(initialCenter);
+  }, [initialCenter.lat, initialCenter.lng]);
+
+  useEffect(() => {
+    if (!containerRef.current) return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      const rect = entry.contentRect;
+      setSize({ width: Math.max(320, rect.width), height: Math.max(460, rect.height) });
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  function moveByPixels(deltaX, deltaY, fromCenter = center, fromZoom = zoom) {
+    const centerPx = lonLatToWorldPixel(fromCenter.lat, fromCenter.lng, fromZoom);
+    return worldPixelToLonLat(centerPx.x - deltaX, centerPx.y - deltaY, fromZoom);
+  }
+
+  function onPointerDown(event) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { x: event.clientX, y: event.clientY, center };
+  }
+
+  function onPointerMove(event) {
+    if (!dragRef.current) return;
+    const deltaX = event.clientX - dragRef.current.x;
+    const deltaY = event.clientY - dragRef.current.y;
+    setCenter(moveByPixels(deltaX, deltaY, dragRef.current.center, zoom));
+  }
+
+  function onPointerUp(event) {
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    dragRef.current = null;
+  }
+
+  function zoomBy(delta) {
+    setZoom((current) => Math.max(11, Math.min(17, current + delta)));
+  }
 
   return (
-    <div className="relative min-h-[460px] overflow-hidden rounded-[2rem] border border-primary-100 bg-slate-100 shadow-sm">
+    <div
+      ref={containerRef}
+      className="relative min-h-[460px] cursor-grab touch-none overflow-hidden rounded-[2rem] border border-primary-100 bg-slate-100 shadow-sm active:cursor-grabbing"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
       <div className="absolute inset-0">
         {map.tiles.map((tile) => (
           <img key={tile.key} src={tile.url} alt="" draggable="false" className="absolute h-64 w-64 select-none" style={{ left: tile.left, top: tile.top }} />
         ))}
       </div>
       <div className="absolute inset-0 bg-primary-50/15" />
+
+      <div className="absolute right-4 top-4 z-20 grid gap-2" onPointerDown={(event) => event.stopPropagation()}>
+        <button type="button" className="icon-button bg-white shadow-sm" onClick={(event) => { event.stopPropagation(); zoomBy(1); }} aria-label="Acercar mapa">
+          <Plus size={17} />
+        </button>
+        <button type="button" className="icon-button bg-white shadow-sm" onClick={(event) => { event.stopPropagation(); zoomBy(-1); }} aria-label="Alejar mapa">
+          <Minus size={17} />
+        </button>
+        <button type="button" className="icon-button bg-white shadow-sm" onClick={(event) => { event.stopPropagation(); setCenter(initialCenter); setZoom(14); }} aria-label="Centrar mapa">
+          <LocateFixed size={17} />
+        </button>
+      </div>
 
       {mappable.length ? (
         mappable.map((point, index) => {
@@ -49,7 +114,7 @@ function MapCanvas({ points, title }) {
         </div>
       )}
 
-      <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-3 rounded-3xl border border-line bg-white/92 p-4 shadow-sm backdrop-blur sm:left-5 sm:right-auto sm:max-w-sm">
+      <div className="pointer-events-none absolute bottom-4 left-4 right-4 flex flex-col gap-3 rounded-3xl border border-line bg-white/92 p-4 shadow-sm backdrop-blur sm:left-5 sm:right-auto sm:max-w-sm">
         <div className="flex items-start gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
             <Navigation size={18} />
@@ -57,7 +122,7 @@ function MapCanvas({ points, title }) {
           <div>
             <p className="font-black text-ink">{title}</p>
             <p className="mt-1 text-xs font-semibold text-slate-500">
-              OpenStreetMap sin API key. Puntos cercanos generados localmente.
+              Arrastra para moverte. Zoom {zoom}. OpenStreetMap sin API key.
             </p>
           </div>
         </div>
