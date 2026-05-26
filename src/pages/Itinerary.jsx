@@ -104,7 +104,7 @@ export default function Itinerary() {
                 </p>
               </div>
               <Link to={`/trips/${activeTripId}/map`} className="secondary-button shrink-0 px-5 py-3">
-                <MapPinned size={18} /> Ver mapa del dÃ­a
+                <MapPinned size={18} /> Ver mapa del día
               </Link>
               <button className="secondary-button shrink-0 px-5 py-3" onClick={() => reorderDayByProximity(day.day)}>
                 <Shuffle size={18} /> Ordenar por cercanía

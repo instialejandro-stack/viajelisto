@@ -1,14 +1,14 @@
 const KNOWN_LOCATIONS = [
-  { keys: ["fontana di trevi", "piazza di trevi"], lat: 41.9009, lng: 12.4833, zone: "Centro historico" },
-  { keys: ["panteon", "pantheon", "piazza della rotonda"], lat: 41.8986, lng: 12.4769, zone: "Centro historico" },
-  { keys: ["coliseo", "colosseo", "piazza del colosseo", "foro romano"], lat: 41.8902, lng: 12.4922, zone: "Centro historico" },
+  { keys: ["fontana di trevi", "piazza di trevi"], lat: 41.9009, lng: 12.4833, zone: "Centro histórico" },
+  { keys: ["panteon", "pantheon", "piazza della rotonda"], lat: 41.8986, lng: 12.4769, zone: "Centro histórico" },
+  { keys: ["coliseo", "colosseo", "piazza del colosseo", "foro romano"], lat: 41.8902, lng: 12.4922, zone: "Centro histórico" },
   { keys: ["museos vaticanos", "viale vaticano", "vaticano"], lat: 41.9065, lng: 12.4536, zone: "Vaticano" },
   { keys: ["basilica de san pedro", "san pedro", "piazza san pietro"], lat: 41.9022, lng: 12.4539, zone: "Vaticano" },
   { keys: ["castillo de sant'angelo", "castillo de santangelo", "lungotevere castello"], lat: 41.9031, lng: 12.4663, zone: "Vaticano" },
   { keys: ["trastevere", "barrio de trastevere"], lat: 41.8896, lng: 12.4703, zone: "Trastevere" },
-  { keys: ["hotel roma centro", "via del corso", "via nazionale"], lat: 41.9016, lng: 12.4863, zone: "Centro historico" },
-  { keys: ["piazza navona"], lat: 41.8992, lng: 12.4731, zone: "Centro historico" },
-  { keys: ["piazza del campidoglio", "campidoglio"], lat: 41.8933, lng: 12.4828, zone: "Centro historico" },
+  { keys: ["hotel roma centro", "via del corso", "via nazionale"], lat: 41.9016, lng: 12.4863, zone: "Centro histórico" },
+  { keys: ["piazza navona"], lat: 41.8992, lng: 12.4731, zone: "Centro histórico" },
+  { keys: ["piazza del campidoglio", "campidoglio"], lat: 41.8933, lng: 12.4828, zone: "Centro histórico" },
   { keys: ["termini", "roma termini"], lat: 41.901, lng: 12.501, zone: "Termini" },
   { keys: ["fiumicino", "aeropuerto de fiumicino"], lat: 41.8003, lng: 12.2389, zone: "Aeropuerto" },
   { keys: ["torre eiffel", "eiffel"], lat: 48.8584, lng: 2.2945, zone: "Centro" },
@@ -286,11 +286,11 @@ export function orderActivitiesByProximity(items = []) {
 }
 
 const NEARBY_PRESETS = [
-  { name: "Cafeteria cercana", type: "Cafeteria", category: "nearby", latOffset: 0.0012, lngOffset: 0.001, distance: "2 min caminando" },
+  { name: "Cafetería cercana", type: "Cafetería", category: "nearby", latOffset: 0.0012, lngOffset: 0.001, distance: "2 min caminando" },
   { name: "Supermercado de barrio", type: "Supermercado", category: "nearby", latOffset: -0.0015, lngOffset: 0.0014, distance: "4 min caminando" },
   { name: "Restaurante recomendado", type: "Restaurante", category: "nearby", latOffset: 0.0018, lngOffset: -0.0013, distance: "5 min caminando" },
   { name: "Bar para desayunar", type: "Bar", category: "nearby", latOffset: -0.0009, lngOffset: -0.0016, distance: "3 min caminando" },
-  { name: "Tienda de alimentacion", type: "Tienda", category: "nearby", latOffset: 0.0022, lngOffset: 0.0004, distance: "6 min caminando" },
+  { name: "Tienda de alimentación", type: "Tienda", category: "nearby", latOffset: 0.0022, lngOffset: 0.0004, distance: "6 min caminando" },
 ];
 
 export function getNearbyUsefulPoints(lodgings = []) {
@@ -310,7 +310,7 @@ export function getNearbyUsefulPoints(lodgings = []) {
       lat: Number((location.lat + preset.latOffset).toFixed(6)),
       lng: Number((location.lng + preset.lngOffset).toFixed(6)),
       distance: preset.distance,
-      notes: "Punto simulado generado localmente a partir de la ubicacion del alojamiento.",
+      notes: "Punto simulado generado localmente a partir de la ubicación del alojamiento.",
     }));
   });
 }

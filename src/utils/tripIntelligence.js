@@ -48,9 +48,9 @@ export function getTripCountdown(trip = {}, now = new Date()) {
   if (today < start) {
     const daysUntil = Math.ceil((start - today) / DAY_MS);
     return {
-      phase: daysUntil <= 7 ? "Ultima semana" : daysUntil <= 30 ? "Preparacion" : "Planificacion",
-      status: trip.status === "Idea" ? "Idea" : "En planificacion",
-      label: daysUntil === 1 ? "Empieza manana" : `Faltan ${daysUntil} dias`,
+      phase: daysUntil <= 7 ? "Última semana" : daysUntil <= 30 ? "Preparación" : "Planificación",
+      status: trip.status === "Idea" ? "Idea" : "En planificación",
+      label: daysUntil === 1 ? "Empieza mañana" : `Faltan ${daysUntil} días`,
       daysUntil,
       tone: daysUntil <= 7 ? "amber" : "primary",
     };
@@ -62,7 +62,7 @@ export function getTripCountdown(trip = {}, now = new Date()) {
     return {
       phase: "En viaje",
       status: "En curso",
-      label: `Dia ${dayNumber} de ${totalDays}`,
+      label: `Día ${dayNumber} de ${totalDays}`,
       daysUntil: 0,
       tone: "emerald",
     };
@@ -72,7 +72,7 @@ export function getTripCountdown(trip = {}, now = new Date()) {
   return {
     phase: "Finalizado",
     status: "Finalizado",
-    label: daysSince === 0 ? "Termina hoy" : `Termino hace ${daysSince} dias`,
+    label: daysSince === 0 ? "Termina hoy" : `Terminó hace ${daysSince} días`,
     daysUntil: -daysSince,
     tone: "violet",
   };
@@ -89,7 +89,7 @@ export function getItineraryIssues(itineraryDays = []) {
   itineraryDays.forEach((day) => {
     const items = [...(day.items || [])].sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
     if (!items.length) {
-      issues.push({ type: "empty-day", severity: "media", title: `${day.day} sin actividades`, detail: "Aun no has planificado este dia." });
+      issues.push({ type: "empty-day", severity: "media", title: `${day.day} sin actividades`, detail: "Aún no has planificado este día." });
       return;
     }
 
@@ -104,10 +104,10 @@ export function getItineraryIssues(itineraryDays = []) {
       const nextStart = timeToMinutes(next?.time);
 
       if (!item.duration) {
-        issues.push({ type: "missing-duration", severity: "baja", title: `${item.name} sin duracion`, detail: `Anade duracion para calcular mejor el ${day.day}.` });
+        issues.push({ type: "missing-duration", severity: "baja", title: `${item.name} sin duración`, detail: `Añade duración para calcular mejor el ${day.day}.` });
       }
       if (!item.cost) {
-        issues.push({ type: "missing-cost", severity: "baja", title: `${item.name} sin coste`, detail: "Anade coste estimado o marca Gratis." });
+        issues.push({ type: "missing-cost", severity: "baja", title: `${item.name} sin coste`, detail: "Añade coste estimado o marca Gratis." });
       }
       if (start !== null && duration > 0 && nextStart !== null && start + duration > nextStart) {
         issues.push({
@@ -145,17 +145,17 @@ export function getTripValidationInsights(trip = {}, data = {}) {
   const pendingPacking = (data.packingItems || []).filter((item) => !item.packed);
   const expensesWithoutReceipt = (data.expenses || []).filter((expense) => Number(expense.amount || 0) > 0 && !expense.receipt);
 
-  if (!trip.startDate || !trip.endDate) checks.push({ severity: "alta", title: "Fechas incompletas", detail: "Define fecha de inicio y fin para activar la cuenta atras." });
-  if (!parseNumber(trip.budget)) checks.push({ severity: "media", title: "Presupuesto sin definir", detail: "Anade un presupuesto para controlar gastos." });
+  if (!trip.startDate || !trip.endDate) checks.push({ severity: "alta", title: "Fechas incompletas", detail: "Define fecha de inicio y fin para activar la cuenta atrás." });
+  if (!parseNumber(trip.budget)) checks.push({ severity: "media", title: "Presupuesto sin definir", detail: "Añade un presupuesto para controlar gastos." });
   if (!(data.transports || []).length) checks.push({ severity: "media", title: "Sin transporte", detail: "Guarda vuelos, trenes o traslados principales." });
   checks.push(...getAccommodationIssues(trip, data.lodgings || []));
-  if (pendingImportantTasks.length) checks.push({ severity: "alta", title: "Tareas criticas pendientes", detail: `${pendingImportantTasks.length} tareas de alta prioridad siguen abiertas.` });
-  if (pendingDocs.length) checks.push({ severity: "alta", title: "Documentos pendientes", detail: `${pendingDocs.length} documentos necesitan revision.` });
+  if (pendingImportantTasks.length) checks.push({ severity: "alta", title: "Tareas críticas pendientes", detail: `${pendingImportantTasks.length} tareas de alta prioridad siguen abiertas.` });
+  if (pendingDocs.length) checks.push({ severity: "alta", title: "Documentos pendientes", detail: `${pendingDocs.length} documentos necesitan revisión.` });
   if (pendingPacking.length) checks.push({ severity: "media", title: "Maleta pendiente", detail: `${pendingPacking.length} elementos siguen sin marcar.` });
   if (expensesWithoutReceipt.length) checks.push({ severity: "baja", title: "Gastos sin justificante", detail: `${expensesWithoutReceipt.length} gastos no tienen archivo adjunto.` });
 
   const emptyDays = itineraryDays.filter((day) => !(day.items || []).length);
-  if (emptyDays.length) checks.push({ severity: "media", title: "Dias sin plan", detail: `${emptyDays.length} dias no tienen actividades.` });
+  if (emptyDays.length) checks.push({ severity: "media", title: "Días sin plan", detail: `${emptyDays.length} días no tienen actividades.` });
   checks.push(...getItineraryIssues(itineraryDays).filter((issue) => issue.type === "overlap" || issue.type === "heavy-day"));
 
   if (!checks.length) checks.push({ severity: "correcto", title: "Todo parece estar en orden", detail: "No hay avisos importantes para este viaje." });
@@ -169,7 +169,7 @@ export function getFinalReadiness(trip = {}, data = {}) {
   const score = Math.max(0, 100 - blockers * 18 - warnings * 8);
   return {
     score,
-    label: score >= 85 ? "Listo para salir" : score >= 60 ? "Casi listo" : "Necesita revision",
+    label: score >= 85 ? "Listo para salir" : score >= 60 ? "Casi listo" : "Necesita revisión",
     blockers,
     warnings,
     checks,

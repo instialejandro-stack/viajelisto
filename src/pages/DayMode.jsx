@@ -57,7 +57,7 @@ export default function DayMode() {
                 );
               })}
               <Link to={`/trips/${activeTripId}/map`} className="secondary-button justify-center">
-                <MapPin size={17} /> Ver mapa del dÃ­a
+                <MapPin size={17} /> Ver mapa del día
               </Link>
             </div>
           ) : (
