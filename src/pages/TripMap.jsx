@@ -61,6 +61,11 @@ function MapCanvas({ points, title, selectedPointId, onSelectPoint, focusPoint }
     return worldPixelToLonLat(centerPx.x - deltaX, centerPx.y - deltaY, fromZoom);
   }
 
+  function pointAtScreenOffset(offsetX, offsetY, fromCenter = center, fromZoom = zoom) {
+    const centerPx = lonLatToWorldPixel(fromCenter.lat, fromCenter.lng, fromZoom);
+    return worldPixelToLonLat(centerPx.x + offsetX, centerPx.y + offsetY, fromZoom);
+  }
+
   function onPointerDown(event) {
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = { x: event.clientX, y: event.clientY, center };
@@ -84,9 +89,9 @@ function MapCanvas({ points, title, selectedPointId, onSelectPoint, focusPoint }
       const rect = containerRef.current.getBoundingClientRect();
       const offsetX = anchorEvent.clientX - rect.left - size.width / 2;
       const offsetY = anchorEvent.clientY - rect.top - size.height / 2;
-      const before = moveByPixels(-offsetX, -offsetY, center, zoom);
+      const before = pointAtScreenOffset(offsetX, offsetY, center, zoom);
       const beforePx = lonLatToWorldPixel(before.lat, before.lng, nextZoom);
-      const nextCenterPx = { x: beforePx.x + offsetX, y: beforePx.y + offsetY };
+      const nextCenterPx = { x: beforePx.x - offsetX, y: beforePx.y - offsetY };
       setCenter(worldPixelToLonLat(nextCenterPx.x, nextCenterPx.y, nextZoom));
     }
     setZoom(nextZoom);
