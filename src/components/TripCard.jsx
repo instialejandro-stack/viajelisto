@@ -20,7 +20,10 @@ export default function TripCard({ trip, onArchive, onDuplicate, onEdit, onDelet
             </p>
             <h3 className="mt-1 text-2xl font-black text-white">{trip.name}</h3>
           </div>
-          <Badge>{trip.archived ? "Archivado" : countdown.status}</Badge>
+          <div className="flex flex-col items-end gap-2">
+            {trip.isExample ? <Badge>Ejemplo</Badge> : null}
+            <Badge>{trip.archived ? "Archivado" : countdown.status}</Badge>
+          </div>
         </div>
       </div>
       <div className="p-5">
@@ -28,6 +31,9 @@ export default function TripCard({ trip, onArchive, onDuplicate, onEdit, onDelet
           <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-black text-primary-700">{countdown.label}</span>
           <ItemActions onEdit={onEdit} onDelete={onDelete} />
         </div>
+        <p className="mb-3 rounded-2xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
+          {trip.isExample ? "Viaje de ejemplo" : "Viaje propio"} · {trip.collaborators?.length || 0} colaboradores
+        </p>
         <div className="mb-4 grid gap-3 text-sm text-slate-500 sm:grid-cols-2">
           <span className="flex items-center gap-1.5">
             <CalendarDays size={15} /> {trip.dates}

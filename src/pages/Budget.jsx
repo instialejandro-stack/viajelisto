@@ -51,10 +51,13 @@ function calculateSharedExpenses(expenses, participants) {
   paidExpenses.forEach((expense) => {
     const splitWith = expense.splitWith?.length ? expense.splitWith : participants.map((participant) => participant.id);
     const amount = Number(expense.amount || 0);
+    const customShares = expense.splitMode === "custom" ? expense.shares || {} : {};
+    const customTotal = Object.values(customShares).reduce((sum, value) => sum + Number(value || 0), 0);
+    const useCustomShares = customTotal > 0;
     const share = splitWith.length ? amount / splitWith.length : 0;
     if (balances[expense.paidBy]) balances[expense.paidBy].paid += amount;
     splitWith.forEach((participantId) => {
-      if (balances[participantId]) balances[participantId].owes += share;
+      if (balances[participantId]) balances[participantId].owes += useCustomShares ? Number(customShares[participantId] || 0) : share;
     });
   });
 
@@ -126,6 +129,8 @@ export default function Budget() {
     receipt: "",
     paidBy: participants[0]?.id || "",
     splitWith: participants.map((participant) => participant.id),
+    splitMode: "equal",
+    shares: {},
   });
 
   const [form, setForm] = useState(emptyForm);
@@ -137,6 +142,7 @@ export default function Budget() {
   const percent = estimated ? Math.min(Math.round((spent / estimated) * 100), 100) : 0;
   const participantsById = useMemo(() => Object.fromEntries(participants.map((participant) => [participant.id, participant])), [participants]);
   const normalizedSplitWith = form.splitWith?.length ? form.splitWith : participants.map((participant) => participant.id);
+  const normalizedShares = normalizedSplitWith.reduce((shares, participantId) => ({ ...shares, [participantId]: form.shares?.[participantId] || "" }), {});
   const sharedSummary = useMemo(() => calculateSharedExpenses(expenses, participants), [expenses, participants]);
   const paymentsByKey = useMemo(() => {
     return settlementPayments.reduce((map, payment) => {
@@ -181,6 +187,10 @@ export default function Budget() {
     });
   }
 
+  function updateShare(participantId, value) {
+    setForm((current) => ({ ...current, shares: { ...(current.shares || {}), [participantId]: value } }));
+  }
+
   function handleReceiptFile(event) {
     update("receipt", fileToReceipt(event.target.files?.[0]));
   }
@@ -191,7 +201,16 @@ export default function Budget() {
       setError("Completa concepto, categoría, importe, pagador y al menos una persona del reparto.");
       return;
     }
-    const payload = { ...form, splitWith: normalizedSplitWith };
+    const customTotal = Object.values(normalizedShares).reduce((sum, value) => sum + Number(value || 0), 0);
+    if (form.splitMode === "custom" && customTotal <= 0) {
+      setError("Indica al menos un importe en el reparto personalizado.");
+      return;
+    }
+    if (form.splitMode === "custom" && Math.abs(customTotal - Number(form.amount || 0)) > 0.01) {
+      setError("El reparto personalizado debe sumar el importe total del gasto.");
+      return;
+    }
+    const payload = { ...form, splitWith: normalizedSplitWith, shares: normalizedShares };
     if (editingExpense !== null) updateExpense(editingExpense, payload);
     else addExpense(payload);
     setForm(emptyForm());
@@ -324,6 +343,8 @@ export default function Budget() {
                         receipt: expense.receipt || "",
                         paidBy: expense.paidBy || participants[0]?.id || "",
                         splitWith: expense.splitWith?.length ? expense.splitWith : participants.map((participant) => participant.id),
+                        splitMode: expense.splitMode || (expense.shares ? "custom" : "equal"),
+                        shares: expense.shares || {},
                       });
                       setError("");
                       setModalOpen(true);
@@ -531,7 +552,24 @@ export default function Budget() {
             ) : null}
           </div>
           <div className="rounded-2xl border border-line bg-slate-50 p-4">
-            <p className="text-sm font-black text-ink">Repartir entre</p>
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+              <p className="text-sm font-black text-ink">Repartir entre</p>
+              <div className="flex rounded-xl border border-line bg-white p-1">
+                {[
+                  ["equal", "A partes iguales"],
+                  ["custom", "Importes"],
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${form.splitMode === value ? "bg-primary-600 text-white" : "text-slate-500 hover:bg-slate-50"}`}
+                    onClick={() => update("splitMode", value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {participants.map((participant) => (
                 <label key={participant.id} className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition ${normalizedSplitWith.includes(participant.id) ? "border-primary-200 bg-white text-primary-800 shadow-sm" : "border-line bg-white/60 text-slate-500"}`}>
@@ -545,6 +583,22 @@ export default function Budget() {
                 </label>
               ))}
             </div>
+            {form.splitMode === "custom" ? (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {normalizedSplitWith.map((participantId) => (
+                  <FormInput
+                    key={participantId}
+                    label={participantsById[participantId]?.name || "Participante"}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={normalizedShares[participantId]}
+                    onChange={(event) => updateShare(participantId, event.target.value)}
+                    placeholder="0"
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
             <button type="button" className="secondary-button" onClick={() => { setModalOpen(false); setEditingExpense(null); }}>Cancelar</button>

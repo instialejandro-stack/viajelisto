@@ -119,7 +119,7 @@ function MapCanvas({ points, title, selectedPointId, onSelectPoint, focusPoint }
   return (
     <div
       ref={containerRef}
-      className="relative min-h-[460px] cursor-grab touch-none overflow-hidden rounded-[2rem] border border-primary-100 bg-slate-100 shadow-sm active:cursor-grabbing"
+      className="relative min-h-[360px] cursor-grab touch-none overflow-hidden rounded-[2rem] border border-primary-100 bg-slate-100 shadow-sm active:cursor-grabbing sm:min-h-[460px]"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -141,7 +141,7 @@ function MapCanvas({ points, title, selectedPointId, onSelectPoint, focusPoint }
         <button type="button" className="icon-button bg-white shadow-sm" onClick={(event) => { event.stopPropagation(); zoomBy(-1); }} aria-label="Alejar mapa">
           <Minus size={17} />
         </button>
-        <button type="button" className="icon-button bg-white shadow-sm" onClick={(event) => { event.stopPropagation(); setCenter(initialCenter); setZoom(14); }} aria-label="Centrar mapa">
+        <button type="button" className="icon-button bg-white shadow-sm" onClick={(event) => { event.stopPropagation(); setCenter(initialCenter); setZoom(14); onSelectPoint?.(""); }} aria-label="Ajustar mapa a los puntos del día" title="Ajustar a puntos">
           <LocateFixed size={17} />
         </button>
       </div>
@@ -162,7 +162,7 @@ function MapCanvas({ points, title, selectedPointId, onSelectPoint, focusPoint }
               onClick={(event) => { event.stopPropagation(); selectCluster(cluster); }}
               title={cluster.points.map(pointLabel).join("\n")}
             >
-              <span className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-black text-white shadow-soft ring-4 transition ${selected ? "scale-110 ring-primary-200" : "ring-white"} ${isSearch ? "bg-violet-600" : isNearby ? "bg-emerald-600" : "bg-primary-600"}`}>
+              <span className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-black text-white shadow-soft ring-4 transition duration-200 ${selected ? "scale-110 ring-primary-200" : "ring-white"} ${isSearch ? "bg-violet-600" : isNearby ? "bg-emerald-600" : "bg-primary-600"}`}>
                 {cluster.points.length > 1 ? cluster.points.length : isNearby ? <Coffee size={18} /> : isSearch ? <Search size={18} /> : index + 1}
               </span>
               {(selected || cluster.points.length === 1) && (

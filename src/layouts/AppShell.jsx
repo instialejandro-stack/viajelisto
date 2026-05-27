@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Coins,
   FileText,
+  Gauge,
   History,
   Home,
   Hotel,
@@ -58,6 +59,7 @@ const navGroups = [
       { label: "Resumen", path: "summary", icon: Map, needsTrip: true },
       { label: "Itinerario", path: "itinerary", icon: Route, needsTrip: true },
       { label: "Mapa", path: "map", icon: MapPinned, needsTrip: true },
+      { label: "Comprobador", path: "final-check", icon: Gauge, needsTrip: true },
       { label: "Hoy", path: "today", match: ["today", "day"], icon: CalendarCheck, needsTrip: true },
     ],
   },
@@ -334,7 +336,7 @@ export default function AppShell() {
             aria-label="Cerrar menú"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="relative h-full w-[min(88vw,20rem)] border-r border-line bg-white shadow-2xl">
+          <aside className="mobile-safe-panel relative h-full w-[min(88vw,20rem)] border-r border-line bg-white shadow-2xl">
             <button
               type="button"
               className="absolute right-3 top-3 z-10 rounded-xl bg-white p-2 text-slate-400 shadow-sm hover:text-slate-700"

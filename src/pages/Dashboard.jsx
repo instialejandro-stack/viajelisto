@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import {
+  Archive,
   ArrowRight,
   BellRing,
   CalendarClock,
@@ -13,17 +14,18 @@ import {
   RotateCcw,
   Route,
   Sparkles,
+  UsersRound,
   WalletCards,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Badge from "../components/Badge.jsx";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
+import EmptyState from "../components/EmptyState.jsx";
+import GuidedDemoModal from "../components/GuidedDemoModal.jsx";
 import SectionCard from "../components/SectionCard.jsx";
 import StatCard from "../components/StatCard.jsx";
 import TripCard from "../components/TripCard.jsx";
 import TripFormModal from "../components/TripFormModal.jsx";
-import EmptyState from "../components/EmptyState.jsx";
-import GuidedDemoModal from "../components/GuidedDemoModal.jsx";
 import useLocalStorage from "../hooks/useLocalStorage.js";
 import { useAppState } from "../state/AppStateContext.jsx";
 import { dashboardTasks, recentIdeas, travelReminders } from "../data/mockData.js";
@@ -35,12 +37,24 @@ const quickLinks = [
   { label: "Checklist", icon: CheckSquare, path: "checklist" },
   { label: "Documentos", icon: FileText, path: "documents" },
   { label: "Lugares", icon: MapPinned, path: "places" },
-  { label: "Sugerencias", icon: Sparkles, path: "suggestions" },
+  { label: "Comprobador", icon: Sparkles, path: "final-check" },
 ];
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { trips, ideas, activeTrip, activeTripId, archiveTrip, deleteTrip, duplicateTrip, loadExampleTrip, resetDemo, setActiveTripId } = useAppState();
+  const {
+    trips,
+    ideas,
+    activeTrip,
+    activeTripData,
+    activeTripId,
+    archiveTrip,
+    deleteTrip,
+    duplicateTrip,
+    loadExampleTrip,
+    resetDemo,
+    setActiveTripId,
+  } = useAppState();
   const [tripModalOpen, setTripModalOpen] = useState(false);
   const [editingTrip, setEditingTrip] = useState(null);
   const [deletingTrip, setDeletingTrip] = useState(null);
@@ -48,21 +62,26 @@ export default function Dashboard() {
   const [guideSeen, setGuideSeen] = useLocalStorage("viajelisto.guideSeen", false);
   const [guideOpen, setGuideOpen] = useState(!guideSeen);
 
+  const activeTrips = trips.filter((trip) => !trip.archived);
+  const archivedTrips = trips.filter((trip) => trip.archived);
+  const exampleTrips = trips.filter((trip) => trip.isExample);
+  const userTrips = trips.filter((trip) => !trip.isExample);
   const totalBudget = useMemo(
     () => trips.reduce((sum, trip) => sum + Number.parseInt(String(trip.budget).replace(/[^\d]/g, ""), 10), 0),
     [trips]
   );
   const nextTrip = useMemo(() => {
-    const upcoming = trips
-      .filter((t) => t.startDate)
+    const upcoming = activeTrips
+      .filter((trip) => trip.startDate)
       .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))[0];
-    return activeTrip || upcoming || trips.find(Boolean);
-  }, [activeTrip, trips]);
+    return activeTrip || upcoming || activeTrips.find(Boolean) || trips.find(Boolean);
+  }, [activeTrip, activeTrips, trips]);
   const nextCountdown = nextTrip ? getTripCountdown(nextTrip) : null;
+  const allChecklistTasks = Object.values(activeTripData?.checklist || {}).flat();
+  const criticalTasks = allChecklistTasks.filter((task) => !task.done && ["alta", "Alta"].includes(task.priority)).slice(0, 4);
 
   return (
     <div className="grid gap-6">
-      {/* Welcome hero */}
       <section className="overflow-hidden rounded-[2rem] border border-line bg-white shadow-soft">
         <div className="grid lg:grid-cols-[1fr_auto]">
           <div className="p-6 sm:p-8 lg:p-10">
@@ -81,18 +100,17 @@ export default function Dashboard() {
                 <PlayCircle size={17} /> Ver demo guiada
               </button>
               <button className="secondary-button px-5 py-2.5" onClick={() => { loadExampleTrip(); setGuideOpen(true); }}>
-                <Sparkles size={17} /> Modo presentación
+                <Sparkles size={17} /> Cargar viaje de ejemplo
               </button>
             </div>
 
-            {/* Quick links — only shown when active trip */}
             {activeTripId && (
               <div className="mt-6 flex flex-wrap gap-2">
                 {quickLinks.map(({ label, icon: Icon, path }) => (
                   <button
                     key={label}
                     onClick={() => navigate(`/trips/${activeTripId}/${path}`)}
-                    className="flex items-center gap-1.5 rounded-xl border border-line bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+                    className="surface-hover flex items-center gap-1.5 rounded-xl border border-line bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-primary-50 hover:text-primary-700"
                   >
                     <Icon size={13} /> {label}
                   </button>
@@ -101,7 +119,6 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Next trip mini card */}
           {nextTrip && (
             <div className="flex items-center border-t border-line bg-gradient-to-br from-primary-50 to-white p-6 lg:w-80 lg:border-l lg:border-t-0">
               <div className="w-full">
@@ -110,13 +127,13 @@ export default function Dashboard() {
                 <p className="mt-1 text-sm text-slate-500">
                   {nextTrip.dates || "Sin fecha"} · {nextTrip.people || "0 personas"}
                 </p>
-                <div className="mt-4 flex items-center justify-between">
+                <div className="mt-4 flex items-center justify-between gap-3">
                   <Badge>{nextTrip.archived ? "Archivado" : nextCountdown?.status}</Badge>
                   <span className="text-sm font-black text-primary-700">{nextCountdown?.label || `${nextTrip.progress || 0}% listo`}</span>
                 </div>
                 <button
                   onClick={() => navigate(`/trips/${nextTrip.id}/summary`)}
-                  className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-primary-700"
+                  className="primary-button mt-4 w-full px-3 py-2"
                 >
                   Ver viaje <ArrowRight size={14} />
                 </button>
@@ -126,9 +143,8 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={Route} label="Viajes activos" value={trips.length} hint="Planificados o en curso" />
+        <StatCard icon={Route} label="Viajes activos" value={activeTrips.length} hint={`${archivedTrips.length} archivados`} />
         <StatCard icon={Lightbulb} label="Ideas guardadas" value={ideas.length} hint="Destinos en evaluación" accent="amber" />
         <StatCard
           icon={CalendarClock}
@@ -137,10 +153,34 @@ export default function Dashboard() {
           hint={nextTrip?.name || "Crea tu primer viaje"}
           accent="emerald"
         />
-        <StatCard icon={WalletCards} label="Presupuesto previsto" value={`${totalBudget} €`} hint="Suma de viajes abiertos" accent="violet" />
+        <StatCard icon={WalletCards} label="Presupuesto previsto" value={`${totalBudget} €`} hint={`${userTrips.length} propios · ${exampleTrips.length} ejemplo`} accent="violet" />
       </div>
 
-      {/* Main content */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <article className="card surface-hover p-5">
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
+              <UsersRound size={20} />
+            </span>
+            <div>
+              <p className="text-sm font-black text-slate-400">Espacio local</p>
+              <h2 className="mt-1 text-xl font-black text-ink">Preparado para colaborar después</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-500">Cada viaje ya guarda propietario, colaboradores y visibilidad en el modelo local, sin activar cuentas ni backend.</p>
+            </div>
+          </div>
+        </article>
+        <article className="card surface-hover p-5">
+          <p className="text-sm font-black text-slate-400">Viaje activo</p>
+          <h2 className="mt-1 text-xl font-black text-ink">{activeTrip?.name || "Sin viaje seleccionado"}</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">{activeTrip?.isExample ? "Estás viendo datos de ejemplo para presentar la demo." : "Datos propios guardados en este navegador."}</p>
+        </article>
+        <article className="card surface-hover p-5">
+          <p className="text-sm font-black text-slate-400">Tareas críticas</p>
+          <h2 className="mt-1 text-xl font-black text-ink">{criticalTasks.length ? `${criticalTasks.length} por revisar` : "Todo tranquilo"}</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">{criticalTasks[0]?.title || "No hay tareas de alta prioridad pendientes en el viaje activo."}</p>
+        </article>
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <SectionCard
           title={`Tus viajes (${trips.length})`}
@@ -177,11 +217,26 @@ export default function Dashboard() {
         </SectionCard>
 
         <aside className="grid gap-5">
-          {/* Tasks */}
+          <SectionCard title="Señales rápidas">
+            <div className="grid gap-3">
+              <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
+                <span className="flex items-center gap-2 text-sm font-bold text-slate-600"><Archive size={16} /> Archivados</span>
+                <strong className="text-ink">{archivedTrips.length}</strong>
+              </div>
+              <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
+                <span className="flex items-center gap-2 text-sm font-bold text-slate-600"><Sparkles size={16} /> Datos de ejemplo</span>
+                <strong className="text-ink">{exampleTrips.length}</strong>
+              </div>
+              <button className="secondary-button w-full" onClick={() => activeTripId && navigate(`/trips/${activeTripId}/final-check`)}>
+                Abrir comprobador final
+              </button>
+            </div>
+          </SectionCard>
+
           <SectionCard title="Próximas tareas">
             <div className="grid gap-3">
-              {dashboardTasks.map((task) => (
-                <div key={task.title} className="flex items-start gap-3 rounded-2xl border border-line bg-white p-4">
+              {(criticalTasks.length ? criticalTasks.map((task) => ({ title: task.title, meta: task.due || task.category || "Alta prioridad" })) : dashboardTasks).map((task) => (
+                <div key={task.title} className="surface-hover flex items-start gap-3 rounded-2xl border border-line bg-white p-4">
                   <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary-50">
                     <CheckSquare size={13} className="text-primary-600" />
                   </div>
@@ -194,7 +249,6 @@ export default function Dashboard() {
             </div>
           </SectionCard>
 
-          {/* Ideas */}
           <SectionCard
             title="Ideas recientes"
             action={
@@ -205,7 +259,7 @@ export default function Dashboard() {
           >
             <div className="grid gap-3">
               {recentIdeas.map((idea) => (
-                <div key={idea.destination} className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4">
+                <div key={idea.destination} className="surface-hover flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4">
                   <div>
                     <p className="font-black text-ink">{idea.destination}</p>
                     <p className="mt-0.5 text-sm text-slate-500">{idea.meta}</p>
@@ -218,7 +272,6 @@ export default function Dashboard() {
             </div>
           </SectionCard>
 
-          {/* Reminders */}
           <SectionCard title="Recordatorios">
             <div className="grid gap-3">
               {travelReminders.map((reminder) => (
@@ -230,7 +283,6 @@ export default function Dashboard() {
             </div>
           </SectionCard>
 
-          {/* Demo reset (subtle) */}
           <details className="group rounded-2xl border border-line bg-white">
             <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-slate-500 hover:text-slate-700">
               <span className="flex items-center gap-2">

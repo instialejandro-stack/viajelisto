@@ -19,6 +19,7 @@ import { buildLocationFromForm, normalizeMappableData, orderActivitiesByProximit
 
 const AppStateContext = createContext(null);
 const EXAMPLE_TRIP_ID = String(initialTrips[0].id);
+const DEFAULT_USER = { id: "local-owner", name: "Alejandro", role: "owner" };
 
 const emptyChecklist = {
   "Antes del viaje": [],
@@ -95,11 +96,14 @@ function ensureParticipants(data, trip = {}) {
 
 function normalizeExpenseSharing(expense, participants) {
   const fallbackParticipant = participants[0]?.id || "p1";
+  const splitWith = expense.splitWith?.length ? expense.splitWith : participants.map((participant) => participant.id);
   return {
     ...expense,
     receipt: normalizeReceipt(expense.receipt),
     paidBy: expense.paidBy || fallbackParticipant,
-    splitWith: expense.splitWith?.length ? expense.splitWith : participants.map((participant) => participant.id),
+    splitWith,
+    splitMode: expense.splitMode || (expense.shares ? "custom" : "equal"),
+    shares: expense.shares || {},
   };
 }
 
@@ -250,10 +254,16 @@ function normalizeTripDates(trip) {
 
 function normalizeTrip(trip) {
   const withDates = normalizeTripDates(trip);
+  const isExample = withDates.isExample ?? String(withDates.id) === EXAMPLE_TRIP_ID;
   return {
     ...withDates,
     id: withDates.id ?? makeId("trip"),
     archived: Boolean(withDates.archived),
+    isExample,
+    owner: withDates.owner || DEFAULT_USER,
+    collaborators: withDates.collaborators || [],
+    visibility: withDates.visibility || "local-demo",
+    dataVersion: withDates.dataVersion || 2,
     people: withDates.people || "2 personas",
     pendingTasks: withDates.pendingTasks ?? 0,
     progress: withDates.progress ?? 10,
@@ -361,6 +371,11 @@ export function AppStateProvider({ children }) {
       budget: `${parseBudget(form.budget)} €`,
       progress: form.status === "Confirmado" ? 85 : form.status === "En planificación" ? 35 : 10,
       pendingTasks: form.status === "Confirmado" ? 3 : 8,
+      isExample: Boolean(form.isExample),
+      owner: form.owner || DEFAULT_USER,
+      collaborators: form.collaborators || [],
+      visibility: "local-demo",
+      dataVersion: 2,
       type: form.type,
       pros: form.pros,
       cons: form.cons,
@@ -648,6 +663,8 @@ export function AppStateProvider({ children }) {
         receipt: form.receipt,
         paidBy: form.paidBy,
         splitWith: form.splitWith,
+        splitMode: form.splitMode,
+        shares: form.shares,
         userAdded: true,
       }, participants);
       return { ...data, participants, expenses: [expense, ...data.expenses] };
@@ -666,6 +683,8 @@ export function AppStateProvider({ children }) {
         receipt: form.receipt,
         paidBy: form.paidBy,
         splitWith: form.splitWith,
+        splitMode: form.splitMode,
+        shares: form.shares,
         userAdded: true,
       }, participants);
       return { ...data, participants, expenses: data.expenses.map((item, itemIndex) => (itemIndex === index ? expense : item)) };
@@ -1161,7 +1180,9 @@ export function AppStateProvider({ children }) {
     setTrips((current) => {
       const normalized = current.map(normalizeTrip);
       const hasExample = normalized.some((trip) => String(trip.id) === EXAMPLE_TRIP_ID);
-      return hasExample ? normalized : [normalizeTrip(initialTrips[0]), ...normalized];
+      return hasExample
+        ? normalized.map((trip) => String(trip.id) === EXAMPLE_TRIP_ID ? { ...trip, isExample: true } : trip)
+        : [normalizeTrip({ ...initialTrips[0], isExample: true }), ...normalized];
     });
     const exampleTrip = normalizeTrip(initialTrips[0]);
     setTripData((current) => ({ ...current, [EXAMPLE_TRIP_ID]: current[EXAMPLE_TRIP_ID] || makeTripData({ example: true, trip: exampleTrip }) }));
