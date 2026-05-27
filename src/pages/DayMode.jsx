@@ -1,20 +1,42 @@
 import React, { useState } from "react";
-import { CalendarDays, CheckCircle2, Clock, FileText, MapPin, ReceiptText, Route } from "lucide-react";
+import { AlertTriangle, CalendarDays, CheckCircle2, Clock, FileText, MapPin, ReceiptText, Route } from "lucide-react";
 import { Link } from "react-router-dom";
 import DayTabs from "../components/DayTabs.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import PageHeader from "../components/PageHeader.jsx";
+import ProgressBar from "../components/ProgressBar.jsx";
 import SectionCard from "../components/SectionCard.jsx";
 import StatCard from "../components/StatCard.jsx";
 import { useAppState } from "../state/AppStateContext.jsx";
+
+function timeToMinutes(value) {
+  const match = String(value || "").match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function nowInMinutes() {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
+}
 
 export default function DayMode() {
   const { activeTripId, itineraryDays, dayModeChecks = {}, documents = [], expenses = [], transports = [], toggleDayModeCheck } = useAppState();
   const [active, setActive] = useState(0);
   const day = itineraryDays[active] || itineraryDays[0];
   const items = day?.items || [];
+  const now = nowInMinutes();
   const done = items.filter((item) => dayModeChecks[`${day.day}-${item.time}-${item.name}`]).length;
-  const nextItem = items.find((item) => !dayModeChecks[`${day.day}-${item.time}-${item.name}`]);
+  const progress = items.length ? Math.round((done / items.length) * 100) : 0;
+  const pendingItems = items.filter((item) => !dayModeChecks[`${day.day}-${item.time}-${item.name}`]);
+  const nextItem = pendingItems.find((item) => {
+    const minutes = timeToMinutes(item.time);
+    return minutes === null || minutes >= now;
+  }) || pendingItems[0];
+  const lateItems = pendingItems.filter((item) => {
+    const minutes = timeToMinutes(item.time);
+    return minutes !== null && minutes + 15 < now;
+  });
   const dayDocuments = documents.filter((document) => String(document.related || document.date || "").toLowerCase().includes(String(day?.day || "").toLowerCase()) || String(document.date || "").includes(day?.date || ""));
   const pendingExpenses = expenses.filter((expense) => expense.status === "pendiente").slice(0, 3);
   const dayTransports = transports.filter((transport) => String(transport.date || "").includes(day?.date || "") || items.some((item) => item.name?.includes(transport.origin) || item.name?.includes(transport.destination)));
@@ -29,6 +51,28 @@ export default function DayMode() {
         <StatCard icon={CheckCircle2} label="Hecho" value={`${done}/${items.length}`} hint="Actividades del día" accent="emerald" />
         <StatCard icon={Clock} label="Siguiente" value={nextItem?.time || "-"} hint={nextItem?.name || "Sin actividades pendientes"} accent="amber" />
       </div>
+
+      <section className="rounded-3xl border border-line bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-black text-ink dark:text-white">Progreso del día</p>
+            <div className="mt-3">
+              <ProgressBar value={progress} label={`${progress}% completado`} />
+            </div>
+          </div>
+          {lateItems.length ? (
+            <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm font-bold text-amber-800">
+              <span className="flex items-center gap-2">
+                <AlertTriangle size={17} /> {lateItems.length} pendiente ya pasó de hora
+              </span>
+            </div>
+          ) : (
+            <div className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
+              Todo va en orden por ahora.
+            </div>
+          )}
+        </div>
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <SectionCard title={day ? `${day.day}: ${day.title}` : "Día"}>
@@ -70,9 +114,10 @@ export default function DayMode() {
             {nextItem ? (
               <div className="rounded-3xl bg-ink p-5 text-white">
                 <Clock className="mb-4 text-primary-100" size={24} />
-                <p className="text-sm font-bold text-slate-300">{nextItem.time}</p>
+                <p className="text-sm font-bold text-slate-300">Siguiente · {nextItem.time}</p>
                 <h3 className="mt-2 text-xl font-black">{nextItem.name}</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-200">{nextItem.address}</p>
+                {nextItem.travelTime ? <p className="mt-3 rounded-2xl bg-white/10 px-3 py-2 text-sm font-bold">{nextItem.travelTime}</p> : null}
               </div>
             ) : (
               <EmptyState title="Día completado" description="No quedan actividades pendientes en este día." />

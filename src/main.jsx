@@ -20,8 +20,10 @@ import PreparationChecklist from "./pages/PreparationChecklist.jsx";
 import Packing from "./pages/Packing.jsx";
 import DayMode from "./pages/DayMode.jsx";
 import TripMap from "./pages/TripMap.jsx";
+import TripCalendar from "./pages/TripCalendar.jsx";
 import Reservations from "./pages/Reservations.jsx";
 import GroupVotes from "./pages/GroupVotes.jsx";
+import Participants from "./pages/Participants.jsx";
 import Currency from "./pages/Currency.jsx";
 import ZoneMap from "./pages/ZoneMap.jsx";
 import Exports from "./pages/Exports.jsx";
@@ -86,6 +88,8 @@ createRoot(document.getElementById("root")).render(
             <Route path="/comprobador" element={<LegacyTripRedirect section="final-check" />} />
             <Route path="/mapa" element={<LegacyTripRedirect section="map" />} />
             <Route path="/map" element={<LegacyTripRedirect section="map" />} />
+            <Route path="/calendario" element={<LegacyTripRedirect section="calendar" />} />
+            <Route path="/participantes" element={<LegacyTripRedirect section="participants" />} />
 
             {/* Trip routes */}
             <Route path="/trips/:tripId" element={<LegacyTripRedirect section="summary" />} />
@@ -94,6 +98,7 @@ createRoot(document.getElementById("root")).render(
             <Route path="/trips/:tripId/final-check" element={<FinalCheck />} />
             <Route path="/trips/:tripId/itinerary" element={<Itinerary />} />
             <Route path="/trips/:tripId/map" element={<TripMap />} />
+            <Route path="/trips/:tripId/calendar" element={<TripCalendar />} />
             <Route path="/trips/:tripId/transport" element={<Transport />} />
             <Route path="/trips/:tripId/accommodation" element={<Lodging />} />
             <Route path="/trips/:tripId/places" element={<Places />} />
@@ -111,6 +116,7 @@ createRoot(document.getElementById("root")).render(
             <Route path="/trips/:tripId/reservations" element={<Reservations />} />
             <Route path="/trips/:tripId/bookings" element={<Reservations />} />
             <Route path="/trips/:tripId/votes" element={<GroupVotes />} />
+            <Route path="/trips/:tripId/participants" element={<Participants />} />
             <Route path="/trips/:tripId/currency" element={<Currency />} />
             <Route path="/trips/:tripId/zones" element={<ZoneMap />} />
             <Route path="/trips/:tripId/exports" element={<Exports />} />

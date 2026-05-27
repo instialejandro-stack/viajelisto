@@ -58,9 +58,10 @@ const navGroups = [
     id: "viaje",
     label: "Mi viaje",
     icon: Map,
-    items: [
+  items: [
       { label: "Resumen", path: "summary", icon: Map, needsTrip: true },
       { label: "Itinerario", path: "itinerary", icon: Route, needsTrip: true },
+      { label: "Calendario", path: "calendar", icon: CalendarCheck, needsTrip: true },
       { label: "Mapa", path: "map", icon: MapPinned, needsTrip: true },
       { label: "Comprobador", path: "final-check", icon: Gauge, needsTrip: true },
       { label: "Hoy", path: "today", match: ["today", "day"], icon: CalendarCheck, needsTrip: true },
@@ -105,6 +106,7 @@ const navGroups = [
     icon: UsersRound,
     items: [
       { label: "Votaciones", path: "votes", icon: Vote, needsTrip: true },
+      { label: "Participantes", path: "participants", icon: UsersRound, needsTrip: true },
       { label: "Contactos y emergencias", path: "contacts", match: ["contacts", "emergency", "emergencies"], icon: Phone, needsTrip: true },
       { label: "Zonas", path: "zones", icon: MapPinned, needsTrip: true },
     ],

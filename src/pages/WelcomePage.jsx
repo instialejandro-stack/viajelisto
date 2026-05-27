@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { flushSync } from "react-dom";
-import { CheckCircle2, FileText, LayoutDashboard, MapPinned, Plane, Plus, WalletCards } from "lucide-react";
+import { CheckCircle2, Download, FileText, LayoutDashboard, MapPinned, Plane, Plus, WifiOff, WalletCards } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { FormError, FormInput, FormSelect } from "../components/FormControls.jsx";
 import OnboardingOptionCard from "../components/OnboardingOptionCard.jsx";
@@ -251,6 +251,25 @@ export default function WelcomePage() {
               <p className="mt-4 font-black text-ink">{benefit}</p>
             </div>
           ))}
+        </section>
+
+        <section className="rounded-[2rem] border border-primary-100 bg-white/80 p-5 shadow-sm backdrop-blur sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
+                <Download size={22} />
+              </span>
+              <div>
+                <p className="font-black text-ink">También puedes instalar la demo</p>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  ViajeListo está preparado como app instalable y guarda la información principal en este dispositivo.
+                </p>
+              </div>
+            </div>
+            <div className="flex w-fit items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800">
+              <WifiOff size={17} /> Base offline activa
+            </div>
+          </div>
         </section>
       </div>
     </main>

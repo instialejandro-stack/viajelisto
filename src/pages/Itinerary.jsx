@@ -11,7 +11,7 @@ import StatCard from "../components/StatCard.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import { useAppState } from "../state/AppStateContext.jsx";
 import { analyzeItineraryDay, getAccommodationIssues, getItineraryIssues } from "../utils/tripIntelligence.js";
-import { distanceKm, hasCoordinates, inferLocation } from "../utils/mapUtils.js";
+import { distanceKm, hasCoordinates, inferLocation, orderActivitiesByProximity } from "../utils/mapUtils.js";
 
 const emptyActivity = (day = "Día 1") => ({
   day,
@@ -121,6 +121,8 @@ export default function Itinerary() {
   );
   const autoTransfers = dayWithTransfers.items.filter((item) => item.autoTravelTime).length;
   const dayAnalysis = useMemo(() => analyzeItineraryDay(dayWithTransfers), [dayWithTransfers]);
+  const suggestedOrder = useMemo(() => orderActivitiesByProximity(day.items || []), [day.items]);
+  const hasSuggestedOrder = suggestedOrder.some((item, index) => item.name !== day.items?.[index]?.name);
   const itineraryIssues = getItineraryIssues(itineraryDays);
   const dayIssues = itineraryIssues.filter((issue) => issue.title.includes(day?.day));
   const lodgingIssues = getAccommodationIssues(activeTrip, lodgings);
@@ -293,6 +295,31 @@ export default function Itinerary() {
                 <p className="mt-1 text-lg font-black text-ink">{dayAnalysis.travelLabel}</p>
               </div>
             </div>
+          </SectionCard>
+
+          <SectionCard title="Ruta sugerida">
+            {hasSuggestedOrder ? (
+              <div className="grid gap-3">
+                <p className="text-sm leading-6 text-slate-500">
+                  Hay una alternativa que reduce saltos entre zonas usando ubicaciones conocidas del día.
+                </p>
+                <div className="grid gap-2">
+                  {suggestedOrder.slice(0, 5).map((item, index) => (
+                    <div key={`${item.name}-${index}`} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 text-sm font-bold text-ink">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-white text-primary-700 shadow-sm">{index + 1}</span>
+                      <span className="truncate">{item.time} · {item.name}</span>
+                    </div>
+                  ))}
+                </div>
+                <button type="button" className="primary-button w-full" onClick={() => reorderDayByProximity(day.day)}>
+                  Aplicar orden por cercanía
+                </button>
+              </div>
+            ) : (
+              <p className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
+                El orden actual parece razonable por cercanía o faltan coordenadas para mejorarlo.
+              </p>
+            )}
           </SectionCard>
 
           <SectionCard title="Recomendaciones de descanso">
