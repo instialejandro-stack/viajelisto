@@ -29,11 +29,23 @@ function MapCanvas({ points, title, selectedPointId, onSelectPoint, focusPoint }
   const initialCenter = useMemo(() => getMapCenter(mappable), [mappable]);
   const containerRef = useRef(null);
   const dragRef = useRef(null);
+  const pointersRef = useRef(new Map());
+  const pinchRef = useRef(null);
+  const centerRef = useRef(initialCenter);
+  const zoomRef = useRef(14);
   const [center, setCenter] = useState(initialCenter);
   const [zoom, setZoom] = useState(14);
   const [size, setSize] = useState({ width: 960, height: 520 });
   const map = buildOsmTiles(center, zoom, size.width, size.height);
   const clusters = useMemo(() => clusterMapPoints(mappable, map), [mappable, map]);
+
+  useEffect(() => {
+    centerRef.current = center;
+  }, [center]);
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
 
   useEffect(() => {
     setCenter(initialCenter);
@@ -66,34 +78,94 @@ function MapCanvas({ points, title, selectedPointId, onSelectPoint, focusPoint }
     return worldPixelToLonLat(centerPx.x + offsetX, centerPx.y + offsetY, fromZoom);
   }
 
+  function getPointerPair() {
+    return [...pointersRef.current.values()].slice(0, 2);
+  }
+
+  function pointerDistance([first, second]) {
+    if (!first || !second) return 0;
+    return Math.hypot(first.x - second.x, first.y - second.y);
+  }
+
+  function pointerMidpoint([first, second]) {
+    if (!first || !second) return null;
+    return {
+      clientX: (first.x + second.x) / 2,
+      clientY: (first.y + second.y) / 2,
+    };
+  }
+
   function onPointerDown(event) {
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { x: event.clientX, y: event.clientY, center };
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    const pointers = getPointerPair();
+    if (pointers.length >= 2) {
+      dragRef.current = null;
+      pinchRef.current = { distance: pointerDistance(pointers) };
+      return;
+    }
+
+    dragRef.current = { x: event.clientX, y: event.clientY, center: centerRef.current, zoom: zoomRef.current };
   }
 
   function onPointerMove(event) {
+    if (!pointersRef.current.has(event.pointerId)) return;
+    event.preventDefault();
+    pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    const pointers = getPointerPair();
+    if (pointers.length >= 2) {
+      const distance = pointerDistance(pointers);
+      const midpoint = pointerMidpoint(pointers);
+      const previousDistance = pinchRef.current?.distance || distance;
+      const ratio = previousDistance ? distance / previousDistance : 1;
+
+      if (midpoint && (ratio > 1.12 || ratio < 0.88)) {
+        zoomBy(ratio > 1 ? 1 : -1, midpoint);
+        pinchRef.current = { distance };
+      }
+      return;
+    }
+
     if (!dragRef.current) return;
     const deltaX = event.clientX - dragRef.current.x;
     const deltaY = event.clientY - dragRef.current.y;
-    setCenter(moveByPixels(deltaX, deltaY, dragRef.current.center, zoom));
+    setCenter(moveByPixels(deltaX, deltaY, dragRef.current.center, dragRef.current.zoom));
   }
 
   function onPointerUp(event) {
     event.currentTarget.releasePointerCapture?.(event.pointerId);
+    pointersRef.current.delete(event.pointerId);
+    pinchRef.current = null;
+
+    const remaining = [...pointersRef.current.values()][0];
+    if (remaining) {
+      dragRef.current = { x: remaining.x, y: remaining.y, center: centerRef.current, zoom: zoomRef.current };
+      return;
+    }
+
     dragRef.current = null;
   }
 
   function zoomBy(delta, anchorEvent = null) {
-    const nextZoom = Math.max(11, Math.min(18, zoom + delta));
-    if (anchorEvent && nextZoom !== zoom && containerRef.current) {
+    const currentZoom = zoomRef.current;
+    const currentCenter = centerRef.current;
+    const nextZoom = Math.max(11, Math.min(18, currentZoom + delta));
+    if (anchorEvent && nextZoom !== currentZoom && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const offsetX = anchorEvent.clientX - rect.left - size.width / 2;
       const offsetY = anchorEvent.clientY - rect.top - size.height / 2;
-      const before = pointAtScreenOffset(offsetX, offsetY, center, zoom);
+      const before = pointAtScreenOffset(offsetX, offsetY, currentCenter, currentZoom);
       const beforePx = lonLatToWorldPixel(before.lat, before.lng, nextZoom);
       const nextCenterPx = { x: beforePx.x - offsetX, y: beforePx.y - offsetY };
-      setCenter(worldPixelToLonLat(nextCenterPx.x, nextCenterPx.y, nextZoom));
+      const nextCenter = worldPixelToLonLat(nextCenterPx.x, nextCenterPx.y, nextZoom);
+      centerRef.current = nextCenter;
+      setCenter(nextCenter);
     }
+    zoomRef.current = nextZoom;
     setZoom(nextZoom);
   }
 
@@ -119,17 +191,27 @@ function MapCanvas({ points, title, selectedPointId, onSelectPoint, focusPoint }
   return (
     <div
       ref={containerRef}
-      className="relative min-h-[360px] cursor-grab touch-none overflow-hidden rounded-[2rem] border border-primary-100 bg-slate-100 shadow-sm active:cursor-grabbing sm:min-h-[460px]"
+      className="relative min-h-[360px] cursor-grab touch-none select-none overflow-hidden rounded-[2rem] border border-primary-100 bg-slate-100 shadow-sm active:cursor-grabbing sm:min-h-[460px]"
+      style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       onWheel={handleWheel}
       onDoubleClick={handleDoubleClick}
+      onDragStart={(event) => event.preventDefault()}
     >
       <div className="absolute inset-0">
         {map.tiles.map((tile) => (
-          <img key={tile.key} src={tile.url} alt="" draggable="false" className="absolute h-64 w-64 select-none" style={{ left: tile.left, top: tile.top }} />
+          <img
+            key={tile.key}
+            src={tile.url}
+            alt=""
+            draggable="false"
+            className="pointer-events-none absolute h-64 w-64 select-none"
+            style={{ left: tile.left, top: tile.top, userSelect: "none", WebkitUserDrag: "none" }}
+            onDragStart={(event) => event.preventDefault()}
+          />
         ))}
       </div>
       <div className="absolute inset-0 bg-primary-50/15" />
