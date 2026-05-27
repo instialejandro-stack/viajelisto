@@ -33,6 +33,11 @@ export default function Checklist() {
     setModalOpen(true);
   }
 
+  function handleRenameTask(group, index, newTitle) {
+    const task = checklist[group]?.[index];
+    if (!task) return;
+    updateTask(group, index, group, { ...task, title: newTitle });
+  }
   function openEdit(group, index, task) {
     setEditingTask({ group, index });
     setForm({
@@ -100,6 +105,7 @@ export default function Checklist() {
               onToggle={toggleTask}
               onEdit={openEdit}
               onDelete={(taskGroup, index, task) => setDeletingTask({ group: taskGroup, index, title: task.title })}
+              onRename={handleRenameTask}
             />
           ))}
         </div>

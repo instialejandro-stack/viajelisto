@@ -1,5 +1,6 @@
 export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
@@ -17,6 +18,7 @@ export default {
           700: "#0e7490",
           800: "#155e75",
           900: "#164e63",
+          950: "#083344",
         },
       },
       boxShadow: {

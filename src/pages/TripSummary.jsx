@@ -1,5 +1,5 @@
-import React from "react";
-import { Backpack, CalendarDays, CheckCircle2, CheckSquare, Coffee, FileText, Hotel, Lightbulb, MapPinned, Plane, Printer, ReceiptText, Route, Sparkles, Ticket, UsersRound, WalletCards } from "lucide-react";
+import React, { useMemo } from "react";
+import { AlertCircle, AlertTriangle, Backpack, CalendarDays, CheckCircle2, CheckSquare, Coffee, FileText, Hotel, Info, Lightbulb, MapPinned, Plane, Printer, ReceiptText, Route, Sparkles, Ticket, UsersRound, WalletCards } from "lucide-react";
 import { Link } from "react-router-dom";
 import Badge from "../components/Badge.jsx";
 import EmptyState from "../components/EmptyState.jsx";
@@ -27,6 +27,13 @@ const summaryQuickLinks = [
 function money(value) {
   return Number.parseInt(String(value).replace(/[^\d]/g, ""), 10) || 0;
 }
+
+const suggestionStyles = {
+  warning: { banner: "alert-warning", icon: AlertTriangle, iconClass: "text-amber-600 mt-0.5 shrink-0", titleClass: "font-bold text-amber-900 dark:text-amber-300", detailClass: "mt-1 text-sm text-amber-800 dark:text-amber-400" },
+  error: { banner: "alert-error", icon: AlertCircle, iconClass: "text-rose-600 mt-0.5 shrink-0", titleClass: "font-bold text-rose-900 dark:text-rose-300", detailClass: "mt-1 text-sm text-rose-800 dark:text-rose-400" },
+  info: { banner: "alert-info", icon: Info, iconClass: "text-primary-600 mt-0.5 shrink-0", titleClass: "font-bold text-primary-900 dark:text-primary-300", detailClass: "mt-1 text-sm text-primary-800 dark:text-primary-400" },
+  success: { banner: "alert-success", icon: CheckCircle2, iconClass: "text-emerald-600 mt-0.5 shrink-0", titleClass: "font-bold text-emerald-900 dark:text-emerald-300", detailClass: "mt-1 text-sm text-emerald-800 dark:text-emerald-400" },
+};
 
 export default function TripSummary() {
   const { activeTrip, activeTripId, itineraryDays, transports, lodgings, checklist, expenses, budgetRows, places, participants = [], packingItems = [], documents = [] } = useAppState();
@@ -58,6 +65,36 @@ export default function TripSummary() {
       }
     : null;
 
+  // Contextual smart suggestions derived from real trip data
+  const suggestions = useMemo(() => {
+    if (!activeTrip) return [];
+    const list = [];
+    const estimated = money(activeTrip.budget || "0");
+
+    if (!transports.length) {
+      list.push({ level: "warning", title: "Sin transporte registrado", detail: "Añade vuelos, trenes o traslados para no perder fechas y horarios clave." });
+    }
+    if (!lodgings.length) {
+      list.push({ level: "warning", title: "Sin alojamiento guardado", detail: "Registra el hotel o apartamento principal para tenerlo todo centralizado." });
+    }
+    if (!expenses.length) {
+      list.push({ level: "info", title: "Sin gastos registrados aún", detail: "Empieza a anotar gastos para llevar un control real del presupuesto." });
+    }
+    if (pendingTasks.length > 5) {
+      list.push({ level: "warning", title: `${pendingTasks.length} tareas pendientes`, detail: "Tienes muchas cosas por resolver. Revisa el checklist antes de salir." });
+    }
+    if (!packingItems.length) {
+      list.push({ level: "info", title: "La maleta está vacía", detail: "Añade elementos a la maleta para asegurarte de no olvidar nada esencial." });
+    }
+    if (pendingDocuments.length > 0) {
+      list.push({ level: "warning", title: `${pendingDocuments.length} documento${pendingDocuments.length > 1 ? "s" : ""} pendiente${pendingDocuments.length > 1 ? "s" : ""}`, detail: "Revisa los documentos antes de viajar para evitar contratiempos en el aeropuerto." });
+    }
+    if (estimated > 0 && spent > estimated * 0.9) {
+      list.push({ level: "error", title: "Presupuesto casi agotado", detail: `Has registrado ${spent} € de ${estimated} € estimados (${Math.round((spent / estimated) * 100)}%). Revisa los gastos restantes.` });
+    }
+    return list;
+  }, [activeTrip, transports, lodgings, expenses, pendingTasks, packingItems, pendingDocuments, spent]);
+
   if (!trip) {
     return <EmptyState title="No hay viaje seleccionado" description="Vuelve al Dashboard y crea o abre un viaje para empezar a planificar." />;
   }
@@ -67,32 +104,32 @@ export default function TripSummary() {
       <TripHeader trip={trip} />
 
       <section className="grid gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="rounded-[2rem] border border-primary-100 bg-[linear-gradient(135deg,#ecfeff_0%,#ffffff_78%)] p-5 shadow-sm">
-          <p className="text-sm font-black uppercase text-primary-700">Cuenta atrás</p>
+        <div className="rounded-[2rem] border border-primary-100 bg-[linear-gradient(135deg,#ecfeff_0%,#ffffff_78%)] p-5 shadow-sm dark:border-primary-900 dark:bg-[linear-gradient(135deg,#0c2a30_0%,#0f172a_78%)]">
+          <p className="text-sm font-black uppercase text-primary-700 dark:text-primary-400">Cuenta atrás</p>
           <div className="mt-3 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <h2 className="text-3xl font-black text-ink">{countdown.label}</h2>
-              <p className="mt-2 text-sm text-slate-600">{countdown.phase} · Estado automático: <strong>{countdown.status}</strong></p>
+              <h2 className="text-3xl font-black text-ink dark:text-white">{countdown.label}</h2>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{countdown.phase} · Estado automático: <strong>{countdown.status}</strong></p>
             </div>
             <Badge>{countdown.status}</Badge>
           </div>
         </div>
-        <div className="rounded-[2rem] border border-line bg-white p-5 shadow-sm">
+        <div className="rounded-[2rem] border border-line bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <p className="text-sm font-black uppercase text-slate-400">Comprobador final</p>
-          <h2 className="mt-2 text-3xl font-black text-ink">{finalReadiness.score}%</h2>
-          <p className="mt-1 font-bold text-primary-700">{finalReadiness.label}</p>
+          <h2 className="mt-2 text-3xl font-black text-ink dark:text-white">{finalReadiness.score}%</h2>
+          <p className="mt-1 font-bold text-primary-700 dark:text-primary-400">{finalReadiness.label}</p>
           <p className="mt-2 text-sm text-slate-500">{finalReadiness.blockers} avisos críticos · {finalReadiness.warnings} avisos medios</p>
         </div>
       </section>
 
       <QuickCreatePanel />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-primary-100 bg-primary-50/70 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-primary-100 bg-primary-50/70 p-4 dark:border-primary-900 dark:bg-primary-950/30">
         <div>
-          <p className="font-black text-ink">Resumen imprimible del viaje</p>
-          <p className="mt-1 text-sm text-slate-600">Prepara una versión limpia para imprimir o guardar como PDF desde el navegador.</p>
+          <p className="font-black text-ink dark:text-white">Resumen imprimible del viaje</p>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Prepara una versión limpia para imprimir o guardar como PDF desde el navegador.</p>
         </div>
-        <Link to={`/trips/${activeTripId}/print`} className="secondary-button bg-white">
+        <Link to={`/trips/${activeTripId}/print`} className="secondary-button bg-white dark:bg-slate-800">
           <Printer size={16} />
           Exportar viaje
         </Link>
@@ -111,12 +148,12 @@ export default function TripSummary() {
             {pendingTasks.length ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {pendingTasks.slice(0, 4).map((task) => (
-                  <div key={task.title} className="flex items-start gap-3 rounded-2xl border border-line bg-white p-4">
+                  <div key={task.title} className="flex items-start gap-3 rounded-2xl border border-line bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
                     <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-primary-200 bg-primary-50 text-primary-700">
                       <CheckSquare size={14} />
                     </span>
                     <div>
-                      <p className="font-black text-ink">{task.title}</p>
+                      <p className="font-black text-ink dark:text-white">{task.title}</p>
                       <p className="mt-1 text-sm text-slate-500">{task.category || "Pendiente"} · {task.due || "Sin fecha"}</p>
                     </div>
                   </div>
@@ -129,27 +166,27 @@ export default function TripSummary() {
 
           <SectionCard title="Lo que falta por preparar">
             <div className="grid gap-3 sm:grid-cols-3">
-              <Link to={`/trips/${activeTripId}/checklist`} className="rounded-2xl border border-line bg-white p-4 transition hover:border-primary-200 hover:bg-primary-50">
+              <Link to={`/trips/${activeTripId}/checklist`} className="rounded-2xl border border-line bg-white p-4 transition hover:border-primary-200 hover:bg-primary-50 dark:border-slate-700 dark:bg-slate-800">
                 <CheckSquare className="text-primary-700" size={20} />
-                <p className="mt-3 text-2xl font-black text-ink">{pendingTasks.length}</p>
+                <p className="mt-3 text-2xl font-black text-ink dark:text-white">{pendingTasks.length}</p>
                 <p className="text-sm font-bold text-slate-500">Tareas pendientes</p>
               </Link>
-              <Link to={`/trips/${activeTripId}/documents`} className="rounded-2xl border border-line bg-white p-4 transition hover:border-primary-200 hover:bg-primary-50">
+              <Link to={`/trips/${activeTripId}/documents`} className="rounded-2xl border border-line bg-white p-4 transition hover:border-primary-200 hover:bg-primary-50 dark:border-slate-700 dark:bg-slate-800">
                 <FileText className="text-primary-700" size={20} />
-                <p className="mt-3 text-2xl font-black text-ink">{pendingDocuments.length}</p>
+                <p className="mt-3 text-2xl font-black text-ink dark:text-white">{pendingDocuments.length}</p>
                 <p className="text-sm font-bold text-slate-500">Documentos pendientes</p>
               </Link>
-              <Link to={`/trips/${activeTripId}/packing`} className="rounded-2xl border border-line bg-white p-4 transition hover:border-primary-200 hover:bg-primary-50">
+              <Link to={`/trips/${activeTripId}/packing`} className="rounded-2xl border border-line bg-white p-4 transition hover:border-primary-200 hover:bg-primary-50 dark:border-slate-700 dark:bg-slate-800">
                 <Backpack className="text-primary-700" size={20} />
-                <p className="mt-3 text-2xl font-black text-ink">{pendingPacking.length}</p>
+                <p className="mt-3 text-2xl font-black text-ink dark:text-white">{pendingPacking.length}</p>
                 <p className="text-sm font-bold text-slate-500">Maleta pendiente</p>
               </Link>
             </div>
             <div className="mt-4 grid gap-3">
               {validationInsights.slice(0, 4).map((insight) => (
-                <div key={`${insight.title}-${insight.detail}`} className="rounded-2xl border border-line bg-white p-4">
+                <div key={`${insight.title}-${insight.detail}`} className="rounded-2xl border border-line bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-black text-ink">{insight.title}</p>
+                    <p className="font-black text-ink dark:text-white">{insight.title}</p>
                     <Badge>{insight.severity === "alta" ? "Alta" : insight.severity === "media" ? "Media" : insight.severity === "correcto" ? "Correcto" : "Baja"}</Badge>
                   </div>
                   <p className="mt-2 text-sm text-slate-500">{insight.detail}</p>
@@ -161,10 +198,10 @@ export default function TripSummary() {
           <SectionCard title="Plan del viaje">
             <div className="grid gap-3">
               {itineraryDays.map((item) => (
-                <div key={item.day} className="grid gap-3 rounded-2xl border border-line bg-white p-4 sm:grid-cols-[90px_1fr]">
-                  <span className="flex h-10 w-fit items-center rounded-xl bg-primary-50 px-3 text-sm font-black text-primary-700">{item.day}</span>
+                <div key={item.day} className="grid gap-3 rounded-2xl border border-line bg-white p-4 sm:grid-cols-[90px_1fr] dark:border-slate-700 dark:bg-slate-800">
+                  <span className="flex h-10 w-fit items-center rounded-xl bg-primary-50 px-3 text-sm font-black text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">{item.day}</span>
                   <div>
-                    <h3 className="font-black text-ink">{item.title}</h3>
+                    <h3 className="font-black text-ink dark:text-white">{item.title}</h3>
                     <p className="mt-1 text-sm leading-6 text-slate-500">{item.summary}</p>
                   </div>
                 </div>
@@ -172,27 +209,43 @@ export default function TripSummary() {
             </div>
           </SectionCard>
 
-          <SectionCard title="Sugerencias del viaje">
-            <div className="grid gap-4 rounded-3xl bg-[linear-gradient(135deg,#ecfeff_0%,#ffffff_100%)] p-5">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-primary-700 shadow-sm">
-                <Lightbulb size={22} />
-              </span>
-              <div>
-                <h3 className="text-xl font-black text-ink">Sugerencias del viaje</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-500">Revisa avisos automáticos sobre itinerario, presupuesto y tareas pendientes.</p>
+          {/* Smart contextual suggestions replacing the static link */}
+          <SectionCard title="Sugerencias inteligentes">
+            {suggestions.length > 0 ? (
+              <div className="grid gap-3">
+                {suggestions.map((s) => {
+                  const style = suggestionStyles[s.level] || suggestionStyles.info;
+                  const Icon = style.icon;
+                  return (
+                    <div key={s.title} className={style.banner}>
+                      <Icon size={18} className={style.iconClass} />
+                      <div>
+                        <p className={style.titleClass}>{s.title}</p>
+                        <p className={style.detailClass}>{s.detail}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <Link to={`/trips/${activeTripId}/suggestions`} className="primary-button w-fit">Ver sugerencias</Link>
-            </div>
+            ) : (
+              <div className="alert-success">
+                <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-emerald-600" />
+                <div>
+                  <p className="font-bold text-emerald-800 dark:text-emerald-300">Todo bien encaminado</p>
+                  <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-400">Tu viaje parece bien organizado. Sin alertas activas en este momento.</p>
+                </div>
+              </div>
+            )}
           </SectionCard>
 
           <SectionCard title="Imprescindibles y prioridades">
             {favoritePlaces.length ? (
               <div className="grid gap-3 sm:grid-cols-2">
                 {favoritePlaces.map((place) => (
-                  <Link key={place.name} to={`/trips/${activeTripId}/places`} className="rounded-2xl border border-amber-100 bg-amber-50 p-4 transition hover:bg-amber-100">
+                  <Link key={place.name} to={`/trips/${activeTripId}/places`} className="rounded-2xl border border-amber-100 bg-amber-50 p-4 transition hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/30">
                     <Sparkles className="text-amber-700" size={18} />
-                    <p className="mt-3 font-black text-ink">{place.name}</p>
-                    <p className="mt-1 text-sm font-bold text-amber-800">{place.day} · {place.price}</p>
+                    <p className="mt-3 font-black text-ink dark:text-white">{place.name}</p>
+                    <p className="mt-1 text-sm font-bold text-amber-800 dark:text-amber-400">{place.day} · {place.price}</p>
                   </Link>
                 ))}
               </div>
@@ -207,12 +260,12 @@ export default function TripSummary() {
             {participants.length ? (
               <div className="grid gap-3">
                 {participantExpenseCount.map((participant) => (
-                  <div key={participant.id} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-primary-700 shadow-sm">
+                  <div key={participant.id} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-slate-700/50">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-primary-700 shadow-sm dark:bg-slate-700">
                       <UsersRound size={17} />
                     </span>
                     <div>
-                      <p className="font-black text-ink">{participant.name}</p>
+                      <p className="font-black text-ink dark:text-white">{participant.name}</p>
                       <p className="text-xs font-bold text-slate-400">{participant.expenses} gastos vinculados</p>
                     </div>
                   </div>
@@ -225,14 +278,14 @@ export default function TripSummary() {
 
           <SectionCard title="Próximo transporte">
             {nextTransport ? (
-              <div className="rounded-3xl bg-[linear-gradient(135deg,#ecfeff_0%,#ffffff_100%)] p-5">
+              <div className="rounded-3xl bg-[linear-gradient(135deg,#ecfeff_0%,#ffffff_100%)] p-5 dark:bg-[linear-gradient(135deg,#0c2a30_0%,#0f172a_100%)]">
                 <div className="mb-5 flex items-start justify-between gap-3">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-primary-700 shadow-sm">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-primary-700 shadow-sm dark:bg-slate-800">
                     <Plane size={22} />
                   </span>
                   <Badge>{nextTransport.status}</Badge>
                 </div>
-                <h3 className="text-xl font-black text-ink">{nextTransport.type} {nextTransport.route}</h3>
+                <h3 className="text-xl font-black text-ink dark:text-white">{nextTransport.type} {nextTransport.route}</h3>
                 <p className="mt-2 text-sm font-semibold text-slate-500">{nextTransport.date}, {nextTransport.time}</p>
                 <p className="mt-1 text-sm text-slate-500">{nextTransport.company}</p>
               </div>
@@ -243,22 +296,22 @@ export default function TripSummary() {
 
           <SectionCard title="Alojamiento principal">
             {lodging ? (
-              <div className="rounded-3xl border border-line bg-white p-5">
+              <div className="rounded-3xl border border-line bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
                 <div className="mb-5 flex items-start justify-between gap-3">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
                     <Hotel size={22} />
                   </span>
                   <Badge>{lodging.status}</Badge>
                 </div>
-                <h3 className="text-xl font-black text-ink">{lodging.name}</h3>
+                <h3 className="text-xl font-black text-ink dark:text-white">{lodging.name}</h3>
                 <div className="mt-4 grid gap-3 text-sm">
-                  <p className="flex justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                  <p className="flex justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-700">
                     <span className="text-slate-500">Check-in</span>
-                    <strong>{lodging.checkIn}</strong>
+                    <strong className="dark:text-white">{lodging.checkIn}</strong>
                   </p>
-                  <p className="flex justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                  <p className="flex justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-700">
                     <span className="text-slate-500">Check-out</span>
-                    <strong>{lodging.checkOut}</strong>
+                    <strong className="dark:text-white">{lodging.checkOut}</strong>
                   </p>
                 </div>
               </div>
@@ -270,17 +323,17 @@ export default function TripSummary() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-          <SectionCard title="Mapa del viaje" className="xl:order-1">
-            <MapPlaceholder points={places.length ? places.map((place) => place.name) : [trip.destination]} title={trip.destination} />
+        <SectionCard title="Mapa del viaje" className="xl:order-1">
+          <MapPlaceholder points={places.length ? places.map((place) => place.name) : [trip.destination]} title={trip.destination} />
           {nearbyUsefulPoints.length ? (
-            <div className="mt-4 rounded-3xl border border-emerald-100 bg-emerald-50 p-4">
+            <div className="mt-4 rounded-3xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
               <div className="flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-700">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-700 dark:bg-slate-800 dark:text-emerald-400">
                   <Coffee size={18} />
                 </span>
                 <div>
-                  <p className="font-black text-ink">{nearbyUsefulPoints.length} sitios útiles cerca del alojamiento</p>
-                  <p className="mt-1 text-sm text-emerald-800">Bares, restaurantes, cafeterías y compras generados desde la ubicación guardada.</p>
+                  <p className="font-black text-ink dark:text-white">{nearbyUsefulPoints.length} sitios útiles cerca del alojamiento</p>
+                  <p className="mt-1 text-sm text-emerald-800 dark:text-emerald-400">Bares, restaurantes, cafeterías y compras generados desde la ubicación guardada.</p>
                 </div>
               </div>
             </div>

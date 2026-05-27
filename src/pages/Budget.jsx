@@ -12,6 +12,7 @@ import StatCard from "../components/StatCard.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import { useAppState } from "../state/AppStateContext.jsx";
 import { budgetTips } from "../data/mockData.js";
+import useLocalStorage from "../hooks/useLocalStorage.js";
 
 function formatMoney(value) {
   return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
@@ -109,6 +110,7 @@ export default function Budget() {
     addSettlementPayment,
     deleteSettlementPayment,
   } = useAppState();
+  const [settlementTimestamps, setSettlementTimestamps] = useLocalStorage("viajelisto.settlementTimestamps", {});
   const [activeTab, setActiveTab] = useState("resumen");
   const [modalOpen, setModalOpen] = useState(false);
   const [paymentModal, setPaymentModal] = useState(null);
@@ -248,6 +250,22 @@ export default function Budget() {
     setParticipantError("");
   }
 
+  function handleToggleDebtPaid(settlement) {
+    const wasComplete = settlement.complete;
+    toggleDebtPaid(settlement);
+    setSettlementTimestamps((current) => {
+      if (wasComplete) {
+        const next = { ...current };
+        delete next[settlement.key];
+        return next;
+      }
+      return {
+        ...current,
+        [settlement.key]: new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" }),
+      };
+    });
+  }
+
   function openPaymentModal(settlement) {
     setPaymentModal(settlement);
     setPaymentAmount(String(formatMoney(settlement.remaining || settlement.amount)));
@@ -380,24 +398,32 @@ export default function Budget() {
             </div>
 
             <SectionCard title="Balance por persona">
-              <div className="grid gap-3">
-                {participants.map((participant) => {
-                  const balance = sharedSummary.balances[participant.id] || { paid: 0, owes: 0, balance: 0 };
-                  return (
-                    <article key={participant.id} className="rounded-2xl border border-line bg-white p-4">
-                      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                        <div>
-                          <h3 className="font-black text-ink">{participant.name}</h3>
-                          <p className="mt-1 text-sm text-slate-500">Pagó {formatMoney(balance.paid)} € · Le corresponde {formatMoney(balance.owes)} €</p>
+              {sharedSummary.paidExpenses.length === 0 ? (
+                <EmptyState
+                  title="Sin gastos compartidos"
+                  description="Añade gastos marcados como 'pagado' en la pestaña Gastos para ver el balance entre participantes."
+                  icon={ReceiptText}
+                />
+              ) : (
+                <div className="grid gap-3">
+                  {participants.map((participant) => {
+                    const balance = sharedSummary.balances[participant.id] || { paid: 0, owes: 0, balance: 0 };
+                    return (
+                      <article key={participant.id} className="rounded-2xl border border-line bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+                        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                          <div>
+                            <h3 className="font-black text-ink dark:text-white">{participant.name}</h3>
+                            <p className="mt-1 text-sm text-slate-500">Pagó {formatMoney(balance.paid)} € · Le corresponde {formatMoney(balance.owes)} €</p>
+                          </div>
+                          <span className={`w-fit rounded-full px-3 py-1 text-sm font-black ${balance.balance >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                            {balance.balance >= 0 ? "Debe recibir" : "Debe pagar"} {formatMoney(Math.abs(balance.balance))} €
+                          </span>
                         </div>
-                        <span className={`w-fit rounded-full px-3 py-1 text-sm font-black ${balance.balance >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-                          {balance.balance >= 0 ? "Debe recibir" : "Debe pagar"} {formatMoney(Math.abs(balance.balance))} €
-                        </span>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
             </SectionCard>
 
             <SectionCard title="Liquidación final">
@@ -407,10 +433,15 @@ export default function Budget() {
                     <div key={settlement.key} className={`rounded-2xl p-4 ${settlement.complete ? "bg-emerald-50" : settlement.paid > 0 ? "bg-amber-50" : "bg-primary-50"}`}>
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                          <p className="font-black text-ink">{participantsById[settlement.from]?.name} debe pagar a {participantsById[settlement.to]?.name}</p>
+                          <p className="font-black text-ink dark:text-white">{participantsById[settlement.from]?.name} debe pagar a {participantsById[settlement.to]?.name}</p>
                           <p className="mt-1 text-sm font-bold text-slate-500">
                             {settlement.complete ? "Saldado" : settlement.paid > 0 ? `Pago parcial: ${formatMoney(settlement.paid)} € abonados` : "Pendiente de compensar"}
                           </p>
+                          {settlement.complete && settlementTimestamps[settlement.key] && (
+                            <p className="mt-0.5 text-xs text-slate-400">
+                              Liquidado el {settlementTimestamps[settlement.key]}
+                            </p>
+                          )}
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                           <strong className="text-primary-800">{formatMoney(settlement.remaining)} € pendientes</strong>
@@ -419,7 +450,7 @@ export default function Budget() {
                               Pago parcial
                             </button>
                           ) : null}
-                          <button type="button" className={settlement.complete ? "secondary-button px-3 py-2 text-xs" : "primary-button px-3 py-2 text-xs"} onClick={() => toggleDebtPaid(settlement)}>
+                          <button type="button" className={settlement.complete ? "secondary-button px-3 py-2 text-xs" : "primary-button px-3 py-2 text-xs"} onClick={() => handleToggleDebtPaid(settlement)}>
                             {settlement.complete ? "Reabrir" : "Marcar saldada"}
                           </button>
                         </div>

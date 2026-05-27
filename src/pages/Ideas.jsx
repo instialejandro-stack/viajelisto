@@ -13,7 +13,18 @@ import StatCard from "../components/StatCard.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import { useAppState } from "../state/AppStateContext.jsx";
 
-const filters = ["Todos", "Cultural", "Escapada urbana", "Gastronomía", "Mejor puntuación"];
+const FILTERS = ["Todos", "Cultural", "Escapada urbana", "Gastronomía", "Mejor puntuación"];
+
+function parseBudgetNum(value) {
+  return Number.parseInt(String(value || "0").replace(/[^\d]/g, ""), 10) || 0;
+}
+
+function scoreColor(score) {
+  const n = Number.parseFloat(score) || 0;
+  if (n >= 8) return "bg-emerald-600";
+  if (n >= 6) return "bg-primary-600";
+  return "bg-slate-500";
+}
 
 export default function Ideas() {
   const navigate = useNavigate();
@@ -22,8 +33,31 @@ export default function Ideas() {
   const [editingId, setEditingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState("");
+  const [activeFilter, setActiveFilter] = useState("Todos");
   const [form, setForm] = useState({ destination: "", dates: "", budget: "", type: "", pros: "", cons: "", score: "" });
-  const bestScore = useMemo(() => ideas.reduce((best, idea) => Math.max(best, Number.parseFloat(idea.score) || 0), 0).toFixed(1), [ideas]);
+
+  const bestScore = useMemo(
+    () => ideas.reduce((best, idea) => Math.max(best, Number.parseFloat(idea.score) || 0), 0).toFixed(1),
+    [ideas]
+  );
+  const avgBudget = useMemo(() => {
+    const nums = ideas.map((i) => parseBudgetNum(i.budget)).filter((n) => n > 0);
+    if (!nums.length) return "—";
+    return `${Math.round(nums.reduce((s, n) => s + n, 0) / nums.length)} €`;
+  }, [ideas]);
+  const viableCount = useMemo(
+    () => ideas.filter((i) => Number.parseFloat(i.score) >= 7).length,
+    [ideas]
+  );
+  const filteredIdeas = useMemo(() => {
+    if (activeFilter === "Mejor puntuación") {
+      return [...ideas].sort((a, b) => (Number.parseFloat(b.score) || 0) - (Number.parseFloat(a.score) || 0));
+    }
+    if (activeFilter !== "Todos") {
+      return ideas.filter((i) => i.type?.toLowerCase().includes(activeFilter.toLowerCase()));
+    }
+    return ideas;
+  }, [ideas, activeFilter]);
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -79,57 +113,76 @@ export default function Ideas() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={Lightbulb} label="Ideas guardadas" value={ideas.length} hint="Destinos en comparación" />
         <StatCard icon={Star} label="Mejor puntuación" value={bestScore} hint="Destino mejor valorado" accent="amber" />
-        <StatCard icon={WalletCards} label="Presupuesto medio" value="807 €" hint="Estimación orientativa" accent="violet" />
-        <StatCard icon={Plane} label="Conexiones" value="3" hint="Opciones viables" accent="emerald" />
+        <StatCard icon={WalletCards} label="Presupuesto medio" value={avgBudget} hint="Estimación orientativa" accent="violet" />
+        <StatCard icon={Plane} label="Opciones viables" value={viableCount} hint="Puntuación ≥ 7" accent="emerald" />
       </div>
 
-      <FilterPills filters={filters} />
+      <FilterPills filters={FILTERS} activeFilter={activeFilter} onFilter={setActiveFilter} />
 
-      <SectionCard title="Comparativa de destinos">
-        {ideas.length ? (
+      <SectionCard title={activeFilter !== "Todos" ? `Destinos · ${activeFilter}` : "Comparativa de destinos"}>
+        {filteredIdeas.length ? (
           <div className="grid gap-5 xl:grid-cols-3">
-            {ideas.map((idea, index) => (
+            {filteredIdeas.map((idea, index) => (
               <article key={`${idea.destination}-${index}`} className="card p-5 transition hover:-translate-y-1 hover:border-primary-200">
-              <div className="flex min-w-0 items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="break-words text-2xl font-black text-ink">{idea.destination}</h2>
-                  <p className="mt-1 text-sm text-slate-500">{idea.dates} · {idea.type}</p>
-                </div>
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  <span className="rounded-2xl bg-ink px-3 py-2 text-sm font-black text-white">{idea.score}/10</span>
-                  <ItemActions onEdit={() => openEdit(idea)} onDelete={() => setDeletingId(idea.id)} />
-                </div>
-              </div>
-              <div className="my-5 rounded-2xl bg-slate-50 p-4">
-                <p className="text-xs font-black uppercase text-slate-400">Presupuesto estimado</p>
-                <p className="mt-1 text-3xl font-black text-ink">{idea.budget}</p>
-              </div>
-              <div className="grid gap-4">
-                <div>
-                  <p className="mb-2 text-sm font-black text-ink">Pros</p>
-                  <div className="flex flex-wrap gap-2">
-                    {idea.pros.map((pro) => <Badge key={pro}>{pro}</Badge>)}
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="break-words text-2xl font-black text-ink dark:text-white">{idea.destination}</h2>
+                    <p className="mt-1 text-sm text-slate-500">{idea.dates} · {idea.type}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    <span className={`rounded-2xl px-3 py-2 text-sm font-black text-white ${scoreColor(idea.score)}`}>
+                      {idea.score}/10
+                    </span>
+                    <ItemActions onEdit={() => openEdit(idea)} onDelete={() => setDeletingId(idea.id)} />
                   </div>
                 </div>
-                <div>
-                  <p className="mb-2 text-sm font-black text-ink">Contras</p>
-                  <p className="text-sm leading-6 text-slate-500">{idea.cons.join(", ")}</p>
+                <div className="my-5 rounded-2xl bg-slate-50 p-4 dark:bg-slate-700/50">
+                  <p className="text-xs font-black uppercase text-slate-400">Presupuesto estimado</p>
+                  <p className="mt-1 text-3xl font-black text-ink dark:text-white">{idea.budget}</p>
                 </div>
-              </div>
-              <button className="primary-button mt-5 w-full" onClick={() => {
-                chooseIdea(idea);
-                navigate(`/trips/${idea.id}/summary`);
-              }}>
-                <CheckCircle2 size={17} /> Elegir este viaje
-              </button>
-            </article>
+                <div className="grid gap-4">
+                  <div>
+                    <p className="mb-2 text-sm font-black text-ink dark:text-white">Pros</p>
+                    <div className="flex flex-wrap gap-2">
+                      {idea.pros.map((pro) => <Badge key={pro}>{pro}</Badge>)}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-2 text-sm font-black text-ink dark:text-white">Contras</p>
+                    <p className="text-sm leading-6 text-slate-500">{idea.cons.join(", ")}</p>
+                  </div>
+                </div>
+                <button
+                  className="primary-button mt-5 w-full"
+                  onClick={() => {
+                    chooseIdea(idea);
+                    navigate(`/trips/${idea.id}/summary`);
+                  }}
+                >
+                  <CheckCircle2 size={17} /> Elegir este viaje
+                </button>
+              </article>
             ))}
           </div>
+        ) : ideas.length ? (
+          <EmptyState
+            title={`Sin destinos de tipo "${activeFilter}"`}
+            description="Prueba otro filtro o añade ideas con ese tipo de viaje."
+          />
         ) : (
-          <EmptyState title="No hay ideas guardadas" description="Añade un destino para empezar a comparar opciones." />
+          <EmptyState
+            title="No hay ideas guardadas"
+            description="Añade un destino para empezar a comparar opciones."
+          />
         )}
       </SectionCard>
-      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setEditingId(null); }} title={editingId !== null ? "Editar idea de viaje" : "Añadir idea de viaje"} description="Guarda una opción para compararla antes de convertirla en viaje.">
+
+      <Modal
+        open={modalOpen}
+        onClose={() => { setModalOpen(false); setEditingId(null); }}
+        title={editingId !== null ? "Editar idea de viaje" : "Añadir idea de viaje"}
+        description="Guarda una opción para compararla antes de convertirla en viaje."
+      >
         <form onSubmit={submit} className="grid gap-4">
           <FormError>{error}</FormError>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -147,6 +200,7 @@ export default function Ideas() {
           </div>
         </form>
       </Modal>
+
       <ConfirmDialog
         open={deletingId !== null}
         title="Eliminar idea"

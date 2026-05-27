@@ -19,6 +19,7 @@ import {
   Map,
   MapPinned,
   Menu,
+  Moon,
   NotebookPen,
   PanelLeftClose,
   PanelLeftOpen,
@@ -31,6 +32,7 @@ import {
   Soup,
   Sparkles,
   Star,
+  Sun,
   Ticket,
   UsersRound,
   Vote,
@@ -38,6 +40,7 @@ import {
 } from "lucide-react";
 import EmptyState from "../components/EmptyState.jsx";
 import TripFormModal from "../components/TripFormModal.jsx";
+import useDarkMode from "../hooks/useDarkMode.js";
 import useLocalStorage from "../hooks/useLocalStorage.js";
 import { useAppState } from "../state/AppStateContext.jsx";
 
@@ -90,13 +93,7 @@ const navGroups = [
     label: "Preparación",
     icon: CheckSquare,
     items: [
-      {
-        label: "Checklist y tareas",
-        path: "checklist",
-        match: ["checklist", "preparation"],
-        icon: CheckSquare,
-        needsTrip: true,
-      },
+      { label: "Checklist y tareas", path: "checklist", match: ["checklist", "preparation"], icon: CheckSquare, needsTrip: true },
       { label: "Maleta", path: "packing", icon: Backpack, needsTrip: true },
       { label: "Documentos", path: "documents", icon: FileText, needsTrip: true },
       { label: "Sugerencias", path: "suggestions", icon: Sparkles, needsTrip: true },
@@ -108,13 +105,7 @@ const navGroups = [
     icon: UsersRound,
     items: [
       { label: "Votaciones", path: "votes", icon: Vote, needsTrip: true },
-      {
-        label: "Contactos y emergencias",
-        path: "contacts",
-        match: ["contacts", "emergency", "emergencies"],
-        icon: Phone,
-        needsTrip: true,
-      },
+      { label: "Contactos y emergencias", path: "contacts", match: ["contacts", "emergency", "emergencies"], icon: Phone, needsTrip: true },
       { label: "Zonas", path: "zones", icon: MapPinned, needsTrip: true },
     ],
   },
@@ -124,20 +115,8 @@ const navGroups = [
     icon: NotebookPen,
     items: [
       { label: "Notas personales", path: "notes", icon: NotebookPen, needsTrip: true },
-      {
-        label: "Diario y galería",
-        path: "memories",
-        match: ["memories", "diary", "journal"],
-        icon: BookOpen,
-        needsTrip: true,
-      },
-      {
-        label: "Valoraciones",
-        path: "review",
-        match: ["review", "reviews"],
-        icon: Star,
-        needsTrip: true,
-      },
+      { label: "Diario y galería", path: "memories", match: ["memories", "diary", "journal"], icon: BookOpen, needsTrip: true },
+      { label: "Valoraciones", path: "review", match: ["review", "reviews"], icon: Star, needsTrip: true },
     ],
   },
   {
@@ -180,14 +159,14 @@ function NavItem({ item, activeTripId, compact = false, onNavigate, pathname, cu
       onClick={() => { if (onNavigate) onNavigate(); }}
       className={`group flex min-h-9 items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-all duration-150 ${
         active
-          ? "bg-primary-50 font-semibold text-primary-700"
-          : "font-medium text-slate-600 hover:bg-slate-50 hover:text-ink"
+          ? "bg-primary-50 font-semibold text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+          : "font-medium text-slate-600 hover:bg-slate-50 hover:text-ink dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
       } ${disabled ? "pointer-events-none opacity-40" : ""} ${compact ? "justify-center px-0" : ""}`}
     >
       <Icon
         size={15}
         className={`shrink-0 transition-colors ${
-          active ? "text-primary-600" : "text-slate-400 group-hover:text-slate-500"
+          active ? "text-primary-600 dark:text-primary-400" : "text-slate-400 group-hover:text-slate-500 dark:text-slate-500 dark:group-hover:text-slate-300"
         }`}
       />
       {!compact && <span className="truncate">{item.label}</span>}
@@ -210,10 +189,10 @@ function SidebarContent({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-white">
+    <div className="flex h-full min-h-0 flex-col bg-white dark:bg-slate-900">
       {/* Logo */}
       <div
-        className={`flex shrink-0 items-center gap-3 border-b border-line px-4 py-4 ${
+        className={`flex shrink-0 items-center gap-3 border-b border-line px-4 py-4 dark:border-slate-700 ${
           compact ? "justify-center" : "justify-between"
         }`}
       >
@@ -227,7 +206,7 @@ function SidebarContent({
           </span>
           {!compact && (
             <div className="min-w-0">
-              <p className="font-bold text-ink">ViajeListo</p>
+              <p className="font-bold text-ink dark:text-white">ViajeListo</p>
               <p className="truncate text-xs text-slate-400">Planificador integral</p>
             </div>
           )}
@@ -272,8 +251,8 @@ function SidebarContent({
                   type="button"
                   className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider transition-all duration-150 ${
                     groupActive
-                      ? "text-primary-600"
-                      : "text-slate-400 hover:bg-slate-50 hover:text-slate-500"
+                      ? "text-primary-600 dark:text-primary-400"
+                      : "text-slate-400 hover:bg-slate-50 hover:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
                   } ${compact ? "justify-center" : ""}`}
                   onClick={() => toggleGroup(group.id)}
                   title={group.label}
@@ -318,6 +297,7 @@ export default function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const { trips, activeTripId, activeTrip, setActiveTripId } = useAppState();
+  const [isDark, toggleDark] = useDarkMode();
   const [tripModalOpen, setTripModalOpen] = useState(false);
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -364,10 +344,10 @@ export default function AppShell() {
   const headerOffset = sidebarCompact ? "lg:ml-[4.5rem]" : "lg:ml-[17rem]";
 
   return (
-    <div className="min-h-screen bg-mist">
+    <div className="min-h-screen bg-mist dark:bg-slate-950">
       {/* Sidebar desktop */}
       <aside
-        className={`fixed inset-y-0 left-0 z-20 hidden border-r border-line bg-white lg:block ${sidebarWidth} transition-all duration-300`}
+        className={`fixed inset-y-0 left-0 z-20 hidden border-r border-line bg-white lg:block dark:border-slate-700 dark:bg-slate-900 ${sidebarWidth} transition-all duration-300`}
       >
         <SidebarContent
           activeTripId={activeTripId}
@@ -389,10 +369,10 @@ export default function AppShell() {
             aria-label="Cerrar menú"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="mobile-safe-panel relative h-full w-[min(88vw,20rem)] border-r border-line bg-white shadow-2xl">
+          <aside className="mobile-safe-panel relative h-full w-[min(88vw,20rem)] border-r border-line bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
             <button
               type="button"
-              className="absolute right-3 top-3 z-10 rounded-xl bg-white p-2 text-slate-400 shadow-sm hover:text-slate-700"
+              className="absolute right-3 top-3 z-10 rounded-xl bg-white p-2 text-slate-400 shadow-sm hover:text-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white"
               onClick={() => setMobileOpen(false)}
               aria-label="Cerrar menú"
             >
@@ -413,7 +393,7 @@ export default function AppShell() {
 
       {/* Header */}
       <header
-        className={`sticky top-0 z-10 border-b border-line bg-white/95 backdrop-blur-md ${headerOffset} transition-all duration-300`}
+        className={`sticky top-0 z-10 border-b border-line bg-white/95 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/95 ${headerOffset} transition-all duration-300`}
       >
         <div className="flex min-h-[60px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-7">
           {/* Left */}
@@ -426,7 +406,7 @@ export default function AppShell() {
             >
               <Menu size={18} />
             </button>
-            <NavLink to="/" className="flex items-center gap-2.5 font-bold text-ink lg:hidden">
+            <NavLink to="/" className="flex items-center gap-2.5 font-bold text-ink dark:text-white lg:hidden">
               <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 text-xs font-black text-white shadow-sm">
                 VL
               </span>
@@ -435,7 +415,7 @@ export default function AppShell() {
             {activeTrip && (
               <div className="hidden min-w-0 lg:block">
                 <p className="text-xs text-slate-400">Viaje activo</p>
-                <h1 className="truncate text-sm font-bold text-ink">{activeTrip.name}</h1>
+                <h1 className="truncate text-sm font-bold text-ink dark:text-white">{activeTrip.name}</h1>
               </div>
             )}
           </div>
@@ -453,7 +433,7 @@ export default function AppShell() {
                 <ChevronDown size={14} className={`shrink-0 transition-transform duration-200 ${selectorOpen ? "rotate-180" : ""}`} />
               </button>
               {selectorOpen && (
-                <div className="absolute right-0 top-12 z-30 w-72 overflow-hidden rounded-2xl border border-line bg-white p-1.5 shadow-modal animate-scale-in">
+                <div className="absolute right-0 top-12 z-30 w-72 overflow-hidden rounded-2xl border border-line bg-white p-1.5 shadow-modal animate-scale-in dark:border-slate-700 dark:bg-slate-900">
                   {trips.length ? (
                     trips.map((trip) => (
                       <button
@@ -461,8 +441,8 @@ export default function AppShell() {
                         type="button"
                         className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-all duration-150 ${
                           String(trip.id) === String(activeTripId)
-                            ? "bg-primary-50 text-primary-700"
-                            : "hover:bg-slate-50"
+                            ? "bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+                            : "text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
                         }`}
                         onClick={() => selectTrip(trip.id)}
                       >
@@ -475,7 +455,7 @@ export default function AppShell() {
                   ) : (
                     <button
                       type="button"
-                      className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-500 hover:bg-slate-50"
+                      className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800"
                       onClick={() => {
                         setSelectorOpen(false);
                         navigate("/dashboard");
@@ -487,6 +467,17 @@ export default function AppShell() {
                 </div>
               )}
             </div>
+
+            {/* Dark mode toggle */}
+            <button
+              type="button"
+              className="icon-button"
+              onClick={toggleDark}
+              aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+              title={isDark ? "Modo claro" : "Modo oscuro"}
+            >
+              {isDark ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
 
             <button className="icon-button hidden sm:inline-flex" aria-label="Notificaciones">
               <Bell size={16} />
@@ -506,7 +497,7 @@ export default function AppShell() {
       {/* Main */}
       <main className={`px-4 py-6 sm:px-6 lg:px-7 ${headerOffset}`}>
         {invalidTripRoute ? (
-          <div className="mx-auto max-w-2xl rounded-3xl border border-line bg-white p-6 shadow-card sm:p-8">
+          <div className="mx-auto max-w-2xl rounded-3xl border border-line bg-white p-6 shadow-card dark:border-slate-700 dark:bg-slate-800 sm:p-8">
             <EmptyState
               title="No encontramos este viaje"
               description="Puede que se haya eliminado o que el enlace ya no sea válido. Vuelve al Dashboard para elegir otro viaje."

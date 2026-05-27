@@ -112,6 +112,12 @@ export default function PreparationChecklist() {
     setModalOpen(true);
   }
 
+  function handleRenameTask(group, index, newTitle) {
+    const task = checklist[group]?.[index];
+    if (!task) return;
+    updateTask(group, index, group, { ...task, title: newTitle });
+  }
+
   function submitChecklist(event) {
     event.preventDefault();
     if (!checklistForm.title || !checklistForm.category) {
@@ -206,6 +212,7 @@ export default function PreparationChecklist() {
                 onToggle={toggleTask}
                 onEdit={openEdit}
                 onDelete={(taskGroup, index, task) => setDeletingTask({ group: taskGroup, index, title: task.title })}
+                onRename={handleRenameTask}
               />
             ))}
           </div>
