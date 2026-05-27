@@ -41,8 +41,9 @@ export default function ItineraryActivityCard({ item, onEdit, onDelete }) {
           <span className="flex items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-2 font-semibold text-slate-700">
             <Clock size={15} /> {item.duration}
           </span>
-          <span className="flex items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-2 font-semibold text-slate-700">
+          <span className={`flex items-center gap-1.5 rounded-xl px-3 py-2 font-semibold ${item.autoTravelTime ? "bg-emerald-50 text-emerald-800" : "bg-slate-50 text-slate-700"}`}>
             <Footprints size={15} /> {item.travelTime || "Sin traslado"}
+            {item.autoTravelTime ? <span className="text-xs font-black uppercase text-emerald-600">{item.autoTravelDistance || "Auto"}</span> : null}
           </span>
           <span className="rounded-xl bg-slate-50 px-3 py-2 font-semibold text-slate-700">{item.cost}</span>
           <span className="rounded-xl bg-primary-50 px-3 py-2 font-semibold text-primary-800 sm:col-span-1">{item.notes}</span>

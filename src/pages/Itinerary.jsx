@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CalendarDays, Clock, Footprints, Lightbulb, MapPinned, Plus, ReceiptText, Route, Shuffle } from "lucide-react";
+import { AlertTriangle, CalendarDays, Car, Clock, Footprints, Lightbulb, MapPinned, Plus, ReceiptText, Route, Shuffle } from "lucide-react";
 import { Link } from "react-router-dom";
 import DayTabs from "../components/DayTabs.jsx";
 import { FormError, FormInput, FormSelect, FormTextarea } from "../components/FormControls.jsx";
@@ -11,6 +11,7 @@ import StatCard from "../components/StatCard.jsx";
 import EmptyState from "../components/EmptyState.jsx";
 import { useAppState } from "../state/AppStateContext.jsx";
 import { analyzeItineraryDay, getAccommodationIssues, getItineraryIssues } from "../utils/tripIntelligence.js";
+import { distanceKm, hasCoordinates, inferLocation } from "../utils/mapUtils.js";
 
 const emptyActivity = (day = "Día 1") => ({
   day,
@@ -26,16 +27,100 @@ const emptyActivity = (day = "Día 1") => ({
   notes: "",
 });
 
+const TRAVEL_MODES = {
+  walking: {
+    label: "A pie",
+    icon: Footprints,
+    speedKmH: 4.8,
+    minimumMinutes: 3,
+    bufferMinutes: 2,
+    text: "caminando",
+  },
+  driving: {
+    label: "En coche",
+    icon: Car,
+    speedKmH: 24,
+    minimumMinutes: 5,
+    bufferMinutes: 8,
+    text: "en coche",
+  },
+};
+
+function minutesToTravelLabel(minutes, mode) {
+  const rounded = Math.max(1, Math.round(minutes));
+  if (rounded < 60) return `${rounded} min ${mode.text}`;
+  const hours = Math.floor(rounded / 60);
+  const rest = rounded % 60;
+  return rest ? `${hours} h ${rest} min ${mode.text}` : `${hours} h ${mode.text}`;
+}
+
+function cleanText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getActivityLocation(item = {}, collections = []) {
+  const direct = inferLocation(item);
+  if (hasCoordinates(direct)) return direct;
+
+  const itemName = cleanText(item.name);
+  const itemAddress = cleanText(item.address);
+  const related = collections.flat().find((entity) => {
+    const entityName = cleanText(entity.name);
+    const entityAddress = cleanText(entity.address || entity.location?.address || entity.zone || entity.area);
+    return Boolean(
+      (itemName && entityName && (itemName.includes(entityName) || entityName.includes(itemName))) ||
+      (itemAddress && entityAddress && (itemAddress.includes(entityAddress) || entityAddress.includes(itemAddress))) ||
+      (itemAddress && entityName && (itemAddress.includes(entityName) || entityName.includes(itemAddress)))
+    );
+  });
+
+  return related ? inferLocation(related) : direct;
+}
+
+function withAutomaticTransfers(day = {}, modeKey = "walking", collections = []) {
+  const mode = TRAVEL_MODES[modeKey] || TRAVEL_MODES.walking;
+  const items = day.items || [];
+  return {
+    ...day,
+    items: items.map((item, index) => {
+      if (item.travelTime || index === 0) return item;
+
+      const previous = items[index - 1];
+      const from = getActivityLocation(previous, collections);
+      const to = getActivityLocation(item, collections);
+      if (!hasCoordinates(from) || !hasCoordinates(to)) return item;
+
+      const km = distanceKm(from, to);
+      if (!Number.isFinite(km)) return item;
+
+      const minutes = Math.max(mode.minimumMinutes, (km / mode.speedKmH) * 60 + mode.bufferMinutes);
+      return {
+        ...item,
+        travelTime: minutesToTravelLabel(minutes, mode),
+        autoTravelTime: true,
+        autoTravelDistance: `${km.toFixed(1)} km`,
+        autoTravelMode: modeKey,
+      };
+    }),
+  };
+}
+
 export default function Itinerary() {
-  const { itineraryDays, lodgings, activeTrip, activeTripId, addActivity, updateActivity, deleteActivity, reorderDayByProximity } = useAppState();
+  const { itineraryDays, lodgings, places, restaurants, activeTrip, activeTripId, addActivity, updateActivity, deleteActivity, reorderDayByProximity } = useAppState();
   const [active, setActive] = useState(0);
+  const [travelMode, setTravelMode] = useState("walking");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
   const [deletingActivity, setDeletingActivity] = useState(null);
   const [error, setError] = useState("");
   const [form, setForm] = useState(emptyActivity(itineraryDays[0]?.day || "Día 1"));
   const day = itineraryDays[active] || itineraryDays[0] || { day: "Día 1", items: [] };
-  const dayAnalysis = useMemo(() => analyzeItineraryDay(day), [day]);
+  const dayWithTransfers = useMemo(
+    () => withAutomaticTransfers(day, travelMode, [places, restaurants, lodgings]),
+    [day, travelMode, places, restaurants, lodgings]
+  );
+  const autoTransfers = dayWithTransfers.items.filter((item) => item.autoTravelTime).length;
+  const dayAnalysis = useMemo(() => analyzeItineraryDay(dayWithTransfers), [dayWithTransfers]);
   const itineraryIssues = getItineraryIssues(itineraryDays);
   const dayIssues = itineraryIssues.filter((issue) => issue.title.includes(day?.day));
   const lodgingIssues = getAccommodationIssues(activeTrip, lodgings);
@@ -133,10 +218,38 @@ export default function Itinerary() {
 
       <DayTabs days={itineraryDays} active={active} onChange={setActive} />
 
+      <section className="rounded-3xl border border-line bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-black text-ink">Traslados automáticos</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Calcula el tiempo entre actividades consecutivas cuando tienen ubicación conocida. Puedes cambiar el modo sin guardar datos.
+            </p>
+          </div>
+          <div className="flex rounded-2xl border border-line bg-slate-50 p-1">
+            {Object.entries(TRAVEL_MODES).map(([key, mode]) => {
+              const ModeIcon = mode.icon;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setTravelMode(key)}
+                  className={`flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-bold transition ${
+                    travelMode === key ? "bg-white text-primary-700 shadow-sm" : "text-slate-500 hover:text-ink"
+                  }`}
+                >
+                  <ModeIcon size={16} /> {mode.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={Route} label="Actividades" value={day.items.length} hint="Planificadas para este día" />
+        <StatCard icon={Route} label="Actividades" value={dayWithTransfers.items.length} hint="Planificadas para este día" />
         <StatCard icon={Clock} label="Duración total" value={dayAnalysis.totalDurationLabel} hint={`Agenda: ${dayAnalysis.daySpanLabel}`} accent="emerald" />
-        <StatCard icon={Footprints} label="Traslados" value={dayAnalysis.travelLabel} hint="Tiempo entre actividades" accent="amber" />
+        <StatCard icon={Footprints} label="Traslados" value={dayAnalysis.travelLabel} hint={`${autoTransfers} calculados automáticamente`} accent="amber" />
         <StatCard icon={ReceiptText} label="Coste estimado" value={day.estimatedCost} hint="Sin compras opcionales" accent="violet" />
       </div>
 
@@ -147,13 +260,13 @@ export default function Itinerary() {
             <h2 className="mt-2 text-2xl font-black text-ink">{day.title}</h2>
             <p className="mt-2 leading-7 text-slate-500">{day.summary}</p>
           </div>
-          {day.items.length ? (
+          {dayWithTransfers.items.length ? (
             <div>
-              {day.items.map((item, index) => (
+              {dayWithTransfers.items.map((item, index) => (
                 <ItineraryActivityCard
                   key={`${item.time}-${item.name}-${index}`}
                   item={item}
-                  onEdit={() => openEdit(item, index)}
+                  onEdit={() => openEdit(day.items[index], index)}
                   onDelete={() => setDeletingActivity({ day: day.day, index, name: item.name })}
                 />
               ))}
@@ -168,7 +281,7 @@ export default function Itinerary() {
             <div className="grid gap-3">
               <div className="rounded-2xl bg-primary-50 p-4">
                 <p className="text-sm font-bold text-primary-700">Total de actividades</p>
-                <p className="mt-1 text-3xl font-black text-ink">{day.items.length}</p>
+                <p className="mt-1 text-3xl font-black text-ink">{dayWithTransfers.items.length}</p>
               </div>
               <div className="rounded-2xl bg-slate-50 p-4">
                 <p className="text-sm font-bold text-slate-500">Duración planificada</p>
