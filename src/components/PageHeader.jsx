@@ -1,9 +1,12 @@
 import React from "react";
 import { Plus } from "lucide-react";
+import { backgroundImageStyle, getVisualAsset } from "../utils/visualAssets.js";
 
 export default function PageHeader({ eyebrow, title, subtitle, actionLabel, icon: Icon = Plus, onAction }) {
+  const image = getVisualAsset(title, eyebrow, subtitle);
+
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-line bg-white p-5 shadow-soft sm:p-8">
+    <section className="overflow-hidden rounded-[2rem] border border-line bg-white bg-cover bg-center p-5 shadow-soft sm:p-8" style={backgroundImageStyle(image, "soft")}>
       <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
         <div className="min-w-0">
           {eyebrow && <p className="text-sm font-black uppercase text-primary-700">{eyebrow}</p>}
