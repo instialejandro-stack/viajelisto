@@ -163,7 +163,9 @@ function isItemActive(item, pathname, currentSection) {
 }
 
 function findActiveGroup(pathname, currentSection) {
-  return navGroups.find((group) => group.items.some((item) => isItemActive(item, pathname, currentSection)))?.id;
+  return navGroups.find((group) =>
+    group.items.some((item) => isItemActive(item, pathname, currentSection))
+  )?.id;
 }
 
 function NavItem({ item, activeTripId, compact = false, onNavigate, pathname, currentSection }) {
@@ -174,21 +176,35 @@ function NavItem({ item, activeTripId, compact = false, onNavigate, pathname, cu
   return (
     <NavLink
       to={pathFor(item, activeTripId)}
-      title={disabled ? "Selecciona un viaje para acceder a esta sección." : item.label}
+      title={compact ? item.label : disabled ? "Selecciona un viaje para acceder a esta sección." : ""}
       onClick={() => { if (onNavigate) onNavigate(); }}
-      className={`flex min-h-9 items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-bold transition ${
+      className={`group flex min-h-9 items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-all duration-150 ${
         active
-          ? "bg-primary-50 text-primary-700"
-          : "text-slate-600 hover:bg-slate-50 hover:text-ink"
-      } ${disabled ? "opacity-40" : ""} ${compact ? "justify-center px-2" : ""}`}
+          ? "bg-primary-50 font-semibold text-primary-700"
+          : "font-medium text-slate-600 hover:bg-slate-50 hover:text-ink"
+      } ${disabled ? "pointer-events-none opacity-40" : ""} ${compact ? "justify-center px-0" : ""}`}
     >
-      <Icon size={16} className="shrink-0" />
+      <Icon
+        size={15}
+        className={`shrink-0 transition-colors ${
+          active ? "text-primary-600" : "text-slate-400 group-hover:text-slate-500"
+        }`}
+      />
       {!compact && <span className="truncate">{item.label}</span>}
     </NavLink>
   );
 }
 
-function SidebarContent({ activeTripId, compact, currentSection, onNavigate, onToggleCompact, openGroups, pathname, setOpenGroups }) {
+function SidebarContent({
+  activeTripId,
+  compact,
+  currentSection,
+  onNavigate,
+  onToggleCompact,
+  openGroups,
+  pathname,
+  setOpenGroups,
+}) {
   function toggleGroup(groupId) {
     setOpenGroups((current) => ({ ...current, [groupId]: !current[groupId] }));
   }
@@ -196,15 +212,23 @@ function SidebarContent({ activeTripId, compact, currentSection, onNavigate, onT
   return (
     <div className="flex h-full min-h-0 flex-col bg-white">
       {/* Logo */}
-      <div className={`flex shrink-0 items-center gap-3 border-b border-line px-4 py-4 ${compact ? "justify-center" : "justify-between"}`}>
-        <NavLink to="/" className={`flex min-w-0 items-center gap-3 ${compact ? "justify-center" : ""}`} onClick={onNavigate}>
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-600 text-sm font-black text-white shadow-sm">
+      <div
+        className={`flex shrink-0 items-center gap-3 border-b border-line px-4 py-4 ${
+          compact ? "justify-center" : "justify-between"
+        }`}
+      >
+        <NavLink
+          to="/"
+          className={`flex min-w-0 items-center gap-3 ${compact ? "justify-center" : ""}`}
+          onClick={onNavigate}
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 text-sm font-black text-white shadow-sm">
             VL
           </span>
           {!compact && (
             <div className="min-w-0">
-              <p className="font-black text-ink">ViajeListo</p>
-              <p className="truncate text-xs font-medium text-slate-400">Planificador integral</p>
+              <p className="font-bold text-ink">ViajeListo</p>
+              <p className="truncate text-xs text-slate-400">Planificador integral</p>
             </div>
           )}
         </NavLink>
@@ -215,40 +239,54 @@ function SidebarContent({ activeTripId, compact, currentSection, onNavigate, onT
             onClick={onToggleCompact}
             aria-label="Contraer menú"
           >
-            <PanelLeftClose size={17} />
+            <PanelLeftClose size={16} />
           </button>
         )}
       </div>
 
       {compact && onToggleCompact && (
         <div className="shrink-0 px-3 py-3">
-          <button type="button" className="icon-button w-full" onClick={onToggleCompact} aria-label="Expandir menú">
-            <PanelLeftOpen size={17} />
+          <button
+            type="button"
+            className="icon-button w-full"
+            onClick={onToggleCompact}
+            aria-label="Expandir menú"
+          >
+            <PanelLeftOpen size={16} />
           </button>
         </div>
       )}
 
       <nav className="scrollbar-soft min-h-0 flex-1 overflow-y-auto px-2 py-3">
-        <div className="grid gap-1">
+        <div className="grid gap-0.5">
           {navGroups.map((group) => {
             const GroupIcon = group.icon;
             const open = compact || openGroups[group.id];
-            const groupActive = group.items.some((item) => isItemActive(item, pathname, currentSection));
+            const groupActive = group.items.some((item) =>
+              isItemActive(item, pathname, currentSection)
+            );
 
             return (
               <section key={group.id}>
                 <button
                   type="button"
-                  className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-black uppercase tracking-wide transition ${
-                    groupActive ? "text-primary-700" : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+                  className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider transition-all duration-150 ${
+                    groupActive
+                      ? "text-primary-600"
+                      : "text-slate-400 hover:bg-slate-50 hover:text-slate-500"
                   } ${compact ? "justify-center" : ""}`}
                   onClick={() => toggleGroup(group.id)}
                   title={group.label}
                 >
-                  <GroupIcon size={14} className="shrink-0" />
-                  {!compact && <span className="min-w-0 flex-1 truncate">{group.label}</span>}
+                  <GroupIcon size={13} className="shrink-0" />
                   {!compact && (
-                    <ChevronRight size={13} className={`shrink-0 transition ${open ? "rotate-90" : ""}`} />
+                    <span className="min-w-0 flex-1 truncate">{group.label}</span>
+                  )}
+                  {!compact && (
+                    <ChevronRight
+                      size={12}
+                      className={`shrink-0 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+                    />
                   )}
                 </button>
                 {open && (
@@ -284,14 +322,22 @@ export default function AppShell() {
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCompact, setSidebarCompact] = useLocalStorage("viajelisto.sidebarCompact", false);
-  const [openGroups, setOpenGroups] = useLocalStorage("viajelisto.navGroups", { inicio: true, viaje: true });
+  const [openGroups, setOpenGroups] = useLocalStorage("viajelisto.navGroups", {
+    inicio: true,
+    viaje: true,
+  });
 
-  const invalidTripRoute = Boolean(tripId && !trips.some((trip) => String(trip.id) === String(tripId)));
+  const invalidTripRoute = Boolean(
+    tripId && !trips.some((trip) => String(trip.id) === String(tripId))
+  );
   const currentSection = useMemo(() => {
     const match = location.pathname.match(/\/trips\/[^/]+\/([^/]+)/);
     return match?.[1] || "summary";
   }, [location.pathname]);
-  const activeGroupId = useMemo(() => findActiveGroup(location.pathname, currentSection), [location.pathname, currentSection]);
+  const activeGroupId = useMemo(
+    () => findActiveGroup(location.pathname, currentSection),
+    [location.pathname, currentSection]
+  );
 
   useEffect(() => {
     if (tripId && !invalidTripRoute) setActiveTripId(tripId);
@@ -299,7 +345,12 @@ export default function AppShell() {
 
   useEffect(() => {
     if (activeGroupId) {
-      setOpenGroups((current) => ({ inicio: true, viaje: true, ...current, [activeGroupId]: true }));
+      setOpenGroups((current) => ({
+        inicio: true,
+        viaje: true,
+        ...current,
+        [activeGroupId]: true,
+      }));
     }
   }, [activeGroupId, setOpenGroups]);
 
@@ -315,7 +366,9 @@ export default function AppShell() {
   return (
     <div className="min-h-screen bg-mist">
       {/* Sidebar desktop */}
-      <aside className={`fixed inset-y-0 left-0 z-20 hidden border-r border-line bg-white lg:block ${sidebarWidth}`}>
+      <aside
+        className={`fixed inset-y-0 left-0 z-20 hidden border-r border-line bg-white lg:block ${sidebarWidth} transition-all duration-300`}
+      >
         <SidebarContent
           activeTripId={activeTripId}
           compact={sidebarCompact}
@@ -332,7 +385,7 @@ export default function AppShell() {
         <div className="fixed inset-0 z-40 lg:hidden">
           <button
             type="button"
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
             aria-label="Cerrar menú"
             onClick={() => setMobileOpen(false)}
           />
@@ -343,7 +396,7 @@ export default function AppShell() {
               onClick={() => setMobileOpen(false)}
               aria-label="Cerrar menú"
             >
-              <X size={18} />
+              <X size={17} />
             </button>
             <SidebarContent
               activeTripId={activeTripId}
@@ -359,7 +412,9 @@ export default function AppShell() {
       )}
 
       {/* Header */}
-      <header className={`sticky top-0 z-10 border-b border-line bg-white/92 backdrop-blur-md ${headerOffset}`}>
+      <header
+        className={`sticky top-0 z-10 border-b border-line bg-white/95 backdrop-blur-md ${headerOffset} transition-all duration-300`}
+      >
         <div className="flex min-h-[60px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-7">
           {/* Left */}
           <div className="flex min-w-0 items-center gap-3">
@@ -369,16 +424,18 @@ export default function AppShell() {
               onClick={() => setMobileOpen(true)}
               aria-label="Abrir menú"
             >
-              <Menu size={19} />
+              <Menu size={18} />
             </button>
-            <NavLink to="/" className="flex items-center gap-2.5 font-black text-ink lg:hidden">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-600 text-xs text-white">VL</span>
+            <NavLink to="/" className="flex items-center gap-2.5 font-bold text-ink lg:hidden">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 text-xs font-black text-white shadow-sm">
+                VL
+              </span>
               <span className="hidden xs:inline">ViajeListo</span>
             </NavLink>
             {activeTrip && (
               <div className="hidden min-w-0 lg:block">
-                <p className="text-xs font-semibold text-slate-400">Viaje activo</p>
-                <h1 className="truncate text-base font-black text-ink">{activeTrip.name}</h1>
+                <p className="text-xs text-slate-400">Viaje activo</p>
+                <h1 className="truncate text-sm font-bold text-ink">{activeTrip.name}</h1>
               </div>
             )}
           </div>
@@ -389,26 +446,28 @@ export default function AppShell() {
             <div className="relative min-w-0">
               <button
                 type="button"
-                className="secondary-button max-w-[160px] px-3 sm:max-w-xs"
+                className="secondary-button max-w-[160px] gap-1.5 px-3 sm:max-w-xs"
                 onClick={() => setSelectorOpen((o) => !o)}
               >
-                <span className="truncate">{activeTrip?.name || "Elegir viaje"}</span>
-                <ChevronDown size={15} />
+                <span className="truncate text-sm">{activeTrip?.name || "Elegir viaje"}</span>
+                <ChevronDown size={14} className={`shrink-0 transition-transform duration-200 ${selectorOpen ? "rotate-180" : ""}`} />
               </button>
               {selectorOpen && (
-                <div className="absolute right-0 top-12 z-30 w-72 overflow-hidden rounded-2xl border border-line bg-white p-2 shadow-soft">
+                <div className="absolute right-0 top-12 z-30 w-72 overflow-hidden rounded-2xl border border-line bg-white p-1.5 shadow-modal animate-scale-in">
                   {trips.length ? (
                     trips.map((trip) => (
                       <button
                         key={trip.id}
                         type="button"
-                        className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition ${
-                          String(trip.id) === String(activeTripId) ? "bg-primary-50 text-primary-700" : "hover:bg-slate-50"
+                        className={`w-full rounded-xl px-3 py-2.5 text-left text-sm transition-all duration-150 ${
+                          String(trip.id) === String(activeTripId)
+                            ? "bg-primary-50 text-primary-700"
+                            : "hover:bg-slate-50"
                         }`}
                         onClick={() => selectTrip(trip.id)}
                       >
-                        <span className="block font-black">{trip.name}</span>
-                        <span className="block truncate text-xs text-slate-500">
+                        <span className="block font-semibold">{trip.name}</span>
+                        <span className="block truncate text-xs text-slate-400">
                           {trip.destination} · {trip.status}
                         </span>
                       </button>
@@ -416,8 +475,11 @@ export default function AppShell() {
                   ) : (
                     <button
                       type="button"
-                      className="w-full rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-500"
-                      onClick={() => { setSelectorOpen(false); navigate("/dashboard"); }}
+                      className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-500 hover:bg-slate-50"
+                      onClick={() => {
+                        setSelectorOpen(false);
+                        navigate("/dashboard");
+                      }}
                     >
                       Ir al Dashboard →
                     </button>
@@ -427,11 +489,14 @@ export default function AppShell() {
             </div>
 
             <button className="icon-button hidden sm:inline-flex" aria-label="Notificaciones">
-              <Bell size={17} />
+              <Bell size={16} />
             </button>
 
-            <button className="primary-button px-3 sm:px-4" onClick={() => setTripModalOpen(true)}>
-              <Plus size={16} />
+            <button
+              className="primary-button px-3 sm:px-4"
+              onClick={() => setTripModalOpen(true)}
+            >
+              <Plus size={15} />
               <span className="hidden sm:inline">Nuevo viaje</span>
             </button>
           </div>
@@ -441,13 +506,17 @@ export default function AppShell() {
       {/* Main */}
       <main className={`px-4 py-6 sm:px-6 lg:px-7 ${headerOffset}`}>
         {invalidTripRoute ? (
-          <div className="mx-auto max-w-2xl rounded-[2rem] border border-line bg-white p-6 shadow-soft sm:p-8">
+          <div className="mx-auto max-w-2xl rounded-3xl border border-line bg-white p-6 shadow-card sm:p-8">
             <EmptyState
               title="No encontramos este viaje"
               description="Puede que se haya eliminado o que el enlace ya no sea válido. Vuelve al Dashboard para elegir otro viaje."
             />
             <div className="mt-5 flex justify-center">
-              <button type="button" className="primary-button" onClick={() => navigate("/dashboard")}>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => navigate("/dashboard")}
+              >
                 Volver al Dashboard
               </button>
             </div>

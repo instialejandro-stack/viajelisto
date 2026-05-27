@@ -3,10 +3,10 @@ import {
   Archive,
   ArrowRight,
   Lightbulb,
+  Luggage,
   Plus,
   RotateCcw,
   Sparkles,
-  Luggage,
   WalletCards,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
@@ -68,14 +68,24 @@ export default function Dashboard() {
   const archivedTrips = trips.filter((trip) => trip.archived);
   const ideaTrips = trips.filter((trip) => !trip.archived && trip.status === "Idea");
   const upcomingTrips = trips.filter((trip) => !trip.archived && isUpcomingTrip(trip));
-  const finishedTrips = trips.filter((trip) => !trip.archived && getTripCountdown(trip).status === "Finalizado");
-  const totalBudget = useMemo(() => activeTrips.reduce((sum, trip) => sum + parseBudget(trip.budget), 0), [activeTrips]);
+  const finishedTrips = trips.filter(
+    (trip) => !trip.archived && getTripCountdown(trip).status === "Finalizado"
+  );
+  const totalBudget = useMemo(
+    () => activeTrips.reduce((sum, trip) => sum + parseBudget(trip.budget), 0),
+    [activeTrips]
+  );
 
   const nextTrip = useMemo(() => {
     const upcoming = activeTrips
       .filter((trip) => trip.startDate)
       .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))[0];
-    return upcoming || activeTrips.find((trip) => String(trip.id) === String(activeTripId)) || activeTrips[0] || null;
+    return (
+      upcoming ||
+      activeTrips.find((trip) => String(trip.id) === String(activeTripId)) ||
+      activeTrips[0] ||
+      null
+    );
   }, [activeTripId, activeTrips]);
 
   const visibleTrips = useMemo(() => {
@@ -96,23 +106,27 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[1.75rem] border border-line bg-white p-5 shadow-soft sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="grid gap-5">
+      {/* Welcome banner */}
+      <section className="relative overflow-hidden rounded-3xl border border-line bg-white p-5 shadow-card sm:p-6">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_55%_90%_at_100%_50%,#ecfeff,transparent)]" />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-xs font-black uppercase tracking-wide text-primary-600">Dashboard</p>
-            <h1 className="mt-1 text-2xl font-black text-ink sm:text-3xl">Gestiona tus viajes</h1>
+            <p className="section-label">Dashboard</p>
+            <h1 className="mt-1.5 text-2xl font-bold text-ink sm:text-3xl">
+              Gestiona tus viajes
+            </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
               Abre el viaje que quieras preparar, crea uno nuevo o revisa tus ideas guardadas.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="primary-button px-4 py-2.5" onClick={() => setTripModalOpen(true)}>
-              <Plus size={17} /> Nuevo viaje
+              <Plus size={16} /> Nuevo viaje
             </button>
             {!trips.length ? (
               <button className="secondary-button px-4 py-2.5" onClick={() => loadExampleTrip()}>
-                <Sparkles size={17} /> Cargar ejemplo
+                <Sparkles size={16} /> Cargar ejemplo
               </button>
             ) : (
               <button className="secondary-button px-4 py-2.5" onClick={() => setGuideOpen(true)}>
@@ -123,48 +137,69 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
+      {/* Next trip + stats */}
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(260px,0.75fr)]">
+        {/* Next trip card */}
         <article className="card overflow-hidden">
-          <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_260px]">
+          <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_240px]">
             <div className="p-5 sm:p-6">
-              <p className="text-sm font-black uppercase tracking-wide text-slate-400">Próximo viaje</p>
+              <p className="section-label">Próximo viaje</p>
               {nextTrip ? (
                 <>
-                  <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
+                  <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h2 className="text-2xl font-black text-ink">{nextTrip.name}</h2>
+                      <h2 className="text-xl font-bold text-ink sm:text-2xl">{nextTrip.name}</h2>
                       <p className="mt-1 text-sm text-slate-500">
                         {nextTrip.dates || "Fechas por definir"} · {nextTrip.people || "Personas por definir"}
                       </p>
                     </div>
-                    <Badge>{nextTrip.archived ? "Archivado" : nextCountdown?.status}</Badge>
+                    <Badge dot>{nextTrip.archived ? "Archivado" : nextCountdown?.status}</Badge>
                   </div>
+
                   <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-2xl bg-primary-50 p-4">
-                      <p className="text-xs font-bold uppercase text-primary-700">Cuenta atrás</p>
-                      <p className="mt-1 text-lg font-black text-ink">{nextCountdown?.label || "Sin fecha"}</p>
+                    <div className="rounded-2xl bg-gradient-to-br from-primary-50 to-cyan-50/50 p-4 ring-1 ring-primary-100">
+                      <p className="text-xs font-medium uppercase tracking-wide text-primary-600">
+                        Cuenta atrás
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-ink">
+                        {nextCountdown?.label || "Sin fecha"}
+                      </p>
                     </div>
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-xs font-bold uppercase text-slate-500">Presupuesto</p>
-                      <p className="mt-1 text-lg font-black text-ink">{nextTrip.budget || "0 €"}</p>
+                    <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Presupuesto
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-ink">{nextTrip.budget || "0 €"}</p>
                     </div>
-                    <div className="rounded-2xl bg-slate-50 p-4">
-                      <p className="text-xs font-bold uppercase text-slate-500">Personas</p>
-                      <p className="mt-1 text-lg font-black text-ink">{nextTrip.people || "Por definir"}</p>
+                    <div className="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                        Personas
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-ink">
+                        {nextTrip.people || "Por definir"}
+                      </p>
                     </div>
                   </div>
+
                   <div className="mt-5">
                     <ProgressBar value={nextTrip.progress || 0} label="Preparación" />
                   </div>
+
                   <div className="mt-5 flex flex-wrap gap-2">
-                    <button className="primary-button px-4 py-2.5" onClick={() => openTrip(nextTrip.id)}>
-                      Abrir viaje <ArrowRight size={16} />
+                    <button
+                      className="primary-button px-4 py-2.5"
+                      onClick={() => openTrip(nextTrip.id)}
+                    >
+                      Abrir viaje <ArrowRight size={15} />
                     </button>
-                    {nextCountdown?.daysUntil <= 14 && nextCountdown?.daysUntil >= 0 ? (
-                      <button className="secondary-button px-4 py-2.5" onClick={() => openTrip(nextTrip.id, "final-check")}>
+                    {nextCountdown?.daysUntil <= 14 && nextCountdown?.daysUntil >= 0 && (
+                      <button
+                        className="secondary-button px-4 py-2.5"
+                        onClick={() => openTrip(nextTrip.id, "final-check")}
+                      >
                         Comprobador final
                       </button>
-                    ) : null}
+                    )}
                   </div>
                 </>
               ) : (
@@ -177,48 +212,82 @@ export default function Dashboard() {
                 />
               )}
             </div>
-            {nextTrip ? (
+
+            {nextTrip && (
               <div className="relative min-h-52 overflow-hidden border-t border-line lg:border-l lg:border-t-0">
-                <img src={nextTrip.cover} alt={nextTrip.destination} className="h-full min-h-52 w-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-ink/65 via-ink/10 to-transparent" />
+                <img
+                  src={nextTrip.cover}
+                  alt={nextTrip.destination}
+                  className="h-full min-h-52 w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-ink/70 via-ink/15 to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-white/75">{nextTrip.destination}</p>
-                  <p className="mt-1 text-lg font-black text-white">{nextTrip.status}</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/70">
+                    {nextTrip.destination}
+                  </p>
+                  <p className="mt-1 text-base font-bold text-white">{nextTrip.status}</p>
                 </div>
               </div>
-            ) : null}
+            )}
           </div>
         </article>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
-          <StatCard icon={Luggage} label="Viajes activos" value={activeTrips.length} hint={`${archivedTrips.length} archivados`} />
-          <StatCard icon={Lightbulb} label="Ideas guardadas" value={ideas.length} hint="Destinos por decidir" accent="amber" />
+        {/* Stat cards */}
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+          <StatCard
+            icon={Luggage}
+            label="Viajes activos"
+            value={activeTrips.length}
+            hint={`${archivedTrips.length} archivados`}
+          />
+          <StatCard
+            icon={Lightbulb}
+            label="Ideas guardadas"
+            value={ideas.length}
+            hint="Destinos por decidir"
+            accent="amber"
+          />
         </div>
       </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon={Archive} label="Archivados" value={archivedTrips.length} hint="Ocultos por defecto" accent="emerald" />
-        <StatCard icon={WalletCards} label="Presupuesto previsto" value={`${totalBudget} €`} hint="Suma de viajes activos" accent="violet" />
+      {/* Extra stats */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          icon={Archive}
+          label="Archivados"
+          value={archivedTrips.length}
+          hint="Ocultos por defecto"
+          accent="emerald"
+        />
+        <StatCard
+          icon={WalletCards}
+          label="Presupuesto previsto"
+          value={`${totalBudget} €`}
+          hint="Suma de viajes activos"
+          accent="violet"
+        />
       </div>
 
+      {/* Trips list */}
       <SectionCard
         title="Tus viajes"
         action={
-          <button className="secondary-button" onClick={() => setTripModalOpen(true)}>
-            <Plus size={15} /> Nuevo
+          <button className="secondary-button px-3 py-2 text-sm" onClick={() => setTripModalOpen(true)}>
+            <Plus size={14} /> Nuevo
           </button>
         }
       >
-        <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
+        {/* Filters */}
+        <div className="mb-5 flex gap-1.5 overflow-x-auto pb-1">
           {filters.map((filter) => (
             <button
               key={filter.id}
               type="button"
               onClick={() => setActiveFilter(filter.id)}
-              className={`shrink-0 rounded-full border px-3 py-2 text-xs font-black transition ${
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 ${
                 activeFilter === filter.id
-                  ? "border-primary-500 bg-primary-600 text-white shadow-sm"
-                  : "border-line bg-white text-slate-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+                  ? "bg-primary-600 text-white shadow-sm"
+                  : "bg-white border border-line text-slate-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700"
               }`}
             >
               {filter.label}
@@ -227,7 +296,7 @@ export default function Dashboard() {
         </div>
 
         {visibleTrips.length ? (
-          <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {visibleTrips.map((trip) => (
               <TripCard
                 key={trip.id}
@@ -254,24 +323,30 @@ export default function Dashboard() {
         )}
       </SectionCard>
 
-      {compactIdeas.length ? (
+      {/* Ideas preview */}
+      {compactIdeas.length > 0 && (
         <SectionCard
           title="Ideas guardadas"
           action={
-            <Link to="/ideas" className="secondary-button text-xs">
+            <Link to="/ideas" className="secondary-button px-3 py-2 text-xs">
               Ver todas
             </Link>
           }
         >
           <div className="grid gap-3 md:grid-cols-3">
             {compactIdeas.map((idea) => (
-              <article key={idea.id || idea.destination} className="surface-hover rounded-2xl border border-line bg-slate-50 p-4">
+              <article
+                key={idea.id || idea.destination}
+                className="surface-hover rounded-2xl border border-line bg-slate-50/60 p-4"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-black text-ink">{idea.destination}</p>
-                    <p className="mt-1 text-sm text-slate-500">{idea.dates || "Fechas por definir"}</p>
+                    <p className="font-semibold text-ink">{idea.destination}</p>
+                    <p className="mt-0.5 text-sm text-slate-500">
+                      {idea.dates || "Fechas por definir"}
+                    </p>
                   </div>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-primary-700 shadow-sm">
+                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-primary-700 shadow-sm ring-1 ring-primary-100">
                     {idea.score}/10
                   </span>
                 </div>
@@ -280,20 +355,23 @@ export default function Dashboard() {
             ))}
           </div>
         </SectionCard>
-      ) : null}
+      )}
 
-      <details className="rounded-2xl border border-line bg-white">
-        <summary className="cursor-pointer px-4 py-3 text-sm font-bold text-slate-500 hover:text-slate-700">
+      {/* Demo options */}
+      <details className="rounded-2xl border border-line bg-white shadow-sm">
+        <summary className="cursor-pointer px-5 py-3.5 text-sm font-medium text-slate-500 hover:text-slate-700">
           Opciones de demo
         </summary>
-        <div className="flex flex-col gap-3 border-t border-line p-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-slate-500">Reinicia la demo o vuelve a mostrar el recorrido guiado cuando lo necesites.</p>
+        <div className="flex flex-col gap-3 border-t border-line p-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-500">
+            Reinicia la demo o vuelve a mostrar el recorrido guiado cuando lo necesites.
+          </p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className="secondary-button bg-white" onClick={() => setGuideOpen(true)}>
+            <button type="button" className="secondary-button" onClick={() => setGuideOpen(true)}>
               Demo guiada
             </button>
-            <button type="button" className="secondary-button bg-white" onClick={() => setResetOpen(true)}>
-              <RotateCcw size={15} /> Reiniciar demo
+            <button type="button" className="secondary-button" onClick={() => setResetOpen(true)}>
+              <RotateCcw size={14} /> Reiniciar demo
             </button>
           </div>
         </div>
