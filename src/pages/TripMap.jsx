@@ -68,6 +68,20 @@ function MapCanvas({ points, title, selectedPointId, onSelectPoint, focusPoint }
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+
+    function handleNativeWheel(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      zoomBy(event.deltaY < 0 ? 1 : -1, event);
+    }
+
+    container.addEventListener("wheel", handleNativeWheel, { passive: false });
+    return () => container.removeEventListener("wheel", handleNativeWheel);
+  }, [size.width, size.height]);
+
   function moveByPixels(deltaX, deltaY, fromCenter = center, fromZoom = zoom) {
     const centerPx = lonLatToWorldPixel(fromCenter.lat, fromCenter.lng, fromZoom);
     return worldPixelToLonLat(centerPx.x - deltaX, centerPx.y - deltaY, fromZoom);
@@ -169,11 +183,6 @@ function MapCanvas({ points, title, selectedPointId, onSelectPoint, focusPoint }
     setZoom(nextZoom);
   }
 
-  function handleWheel(event) {
-    event.preventDefault();
-    zoomBy(event.deltaY < 0 ? 1 : -1, event);
-  }
-
   function handleDoubleClick(event) {
     event.preventDefault();
     zoomBy(1, event);
@@ -197,7 +206,6 @@ function MapCanvas({ points, title, selectedPointId, onSelectPoint, focusPoint }
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
-      onWheel={handleWheel}
       onDoubleClick={handleDoubleClick}
       onDragStart={(event) => event.preventDefault()}
     >
